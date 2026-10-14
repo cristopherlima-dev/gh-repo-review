@@ -1,3 +1,9 @@
-# Garante a quebra de linha certa em cada sistema, mesmo editando no Windows
-*.sh  text eol=lf
+# Arquivos de texto usam LF (padrão Linux) no repositório e também na sua pasta,
+# inclusive no Windows. Isso evita os avisos "LF will be replaced by CRLF".
+* text=auto eol=lf
+
+# Exceção: o .bat precisa de CRLF para funcionar no Windows
 *.bat text eol=crlf
+
+# Imagens nunca são tratadas como texto
+*.png binary
