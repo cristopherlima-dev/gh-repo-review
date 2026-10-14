@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +22,7 @@
          font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
   h1 { font-size: 20px; font-weight: 600; margin: 0; }
   .topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-  .topo .acoes { display: flex; gap: 8px; align-items: center; }
+  .topo .acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .sub { color: var(--texto2); font-size: 13px; }
   button, select, input[type=text] { font: inherit; color: var(--texto); background: var(--card);
          border: 1px solid var(--borda); border-radius: 6px; padding: 6px 10px; }
@@ -31,6 +31,11 @@
   button:disabled { opacity: .5; cursor: wait; }
   button.principal { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
   button.perigo { color: var(--vermelho); border-color: var(--vermelho); }
+  /* Seletor de idioma com bandeiras */
+  .idioma { display: inline-flex; border: 1px solid var(--borda); border-radius: 999px; padding: 2px; gap: 2px; }
+  .idioma button { border: none; border-radius: 999px; padding: 3px 10px 3px 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; background: transparent; }
+  .idioma button.on { background: var(--azul-bg); color: var(--azul); }
+  .idioma svg { width: 20px; height: 14px; border-radius: 2px; display: block; }
   .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
   .card { background: var(--card); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
   .card .rot { color: var(--texto2); font-size: 12px; }
@@ -50,13 +55,13 @@
   .desc { color: var(--texto2); font-size: 12px; }
   .status { display: flex; gap: 4px; }
   .status button, .btnClonar { padding: 2px 8px; font-size: 12px; }
-  .status button.on[data-s=manter]   { background: var(--verde-bg);    color: var(--verde);    border-color: var(--verde); }
   .status button.on[data-s=arquivar] { background: var(--ambar-bg);    color: var(--ambar);    border-color: var(--ambar); }
   .status button.on[data-s=excluir]  { background: var(--vermelho-bg); color: var(--vermelho); border-color: var(--vermelho); }
   .abas { display: flex; gap: 4px; margin-bottom: 10px; }
   .abas button.on { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
   .legenda { color: var(--texto2); font-size: 12px; margin-top: 8px; }
   .aviso { color: var(--ambar); font-size: 12px; }
+  #pendente { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ok { color: var(--verde); } .erro { color: var(--vermelho); }
   /* Janelas (modais) */
   .fundo { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 10; }
@@ -85,81 +90,81 @@
   </div>
   <div class="acoes">
     <span class="aviso" id="pendente"></span>
-    <button class="so-servidor" id="btnRelatorio">Relatório</button>
-    <button class="so-servidor" id="btnAtualizar">Atualizar do GitHub</button>
-    <button class="so-estatico" id="btnExportar">Salvar revisão (revisao.json)</button>
-    <button class="so-servidor principal" id="btnAplicar">Aplicar revisão</button>
+    <div class="idioma" role="group" aria-label="Language / Idioma">
+      <button data-idioma="en" aria-label="English (US)">
+        <svg viewBox="0 0 19 13" aria-hidden="true"><rect width="19" height="13" fill="#B22234"/><g fill="#fff"><rect y="1" width="19" height="1"/><rect y="3" width="19" height="1"/><rect y="5" width="19" height="1"/><rect y="7" width="19" height="1"/><rect y="9" width="19" height="1"/><rect y="11" width="19" height="1"/></g><rect width="8" height="7" fill="#3C3B6E"/></svg>EN
+      </button>
+      <button data-idioma="pt-BR" aria-label="Português (Brasil)">
+        <svg viewBox="0 0 20 14" aria-hidden="true"><rect width="20" height="14" fill="#009C3B"/><polygon points="10,1.5 18.5,7 10,12.5 1.5,7" fill="#FFDF00"/><circle cx="10" cy="7" r="3.2" fill="#002776"/><path d="M6.9 6.4 Q10 5.6 13.1 7.3" stroke="#fff" stroke-width="0.6" fill="none"/></svg>PT-BR
+      </button>
+    </div>
+    <button class="so-servidor" id="btnRelatorio" data-t="relatorio"></button>
+    <button class="so-servidor" id="btnAtualizar" data-t="atualizar"></button>
+    <button class="so-estatico" id="btnExportar" data-t="exportar"></button>
+    <button class="so-servidor principal" id="btnAplicar" data-t="aplicar"></button>
   </div>
 </div>
 
-<div class="banner" id="bannerExcluir">
-  Excluir está <b>desligado</b>. Para ligar, mude <code>"permitir_excluir": true</code> no <code>config.json</code> e reinicie o servidor. Exclusão não tem volta.
-</div>
+<div class="banner" id="bannerExcluir" data-t-html="banner_excluir"></div>
 
 <div class="cards">
-  <div class="card"><div class="rot">Ativos</div><div class="num" id="cAtivos">0</div></div>
-  <div class="card"><div class="rot">Já arquivados</div><div class="num" id="cArquivados">0</div></div>
-  <div class="card"><div class="rot">Marcados p/ arquivar</div><div class="num" id="cArquivar">0</div></div>
-  <div class="card"><div class="rot">Marcados p/ excluir</div><div class="num" id="cExcluir">0</div></div>
-  <div class="card"><div class="rot">Sem marcação</div><div class="num" id="cPendente">0</div></div>
-  <div class="card"><div class="rot" id="rotParado">Parados</div><div class="num" id="cParado">0</div></div>
+  <div class="card"><div class="rot" data-t="c_ativos"></div><div class="num" id="cAtivos">0</div></div>
+  <div class="card"><div class="rot" data-t="c_arquivados"></div><div class="num" id="cArquivados">0</div></div>
+  <div class="card"><div class="rot" data-t="c_arquivar"></div><div class="num" id="cArquivar">0</div></div>
+  <div class="card"><div class="rot" data-t="c_excluir"></div><div class="num" id="cExcluir">0</div></div>
+  <div class="card"><div class="rot" data-t="c_sem_marcacao"></div><div class="num" id="cPendente">0</div></div>
+  <div class="card"><div class="rot" data-t="c_parados"></div><div class="num" id="cParado">0</div></div>
 </div>
 
 <div class="abas">
-  <button data-visao="ativos" class="on">Ativos (<span id="nAtivos">0</span>)</button>
-  <button data-visao="arquivados">Arquivados (<span id="nArquivados">0</span>)</button>
+  <button data-visao="ativos" class="on"><span data-t="aba_ativos"></span> (<span id="nAtivos">0</span>)</button>
+  <button data-visao="arquivados"><span data-t="aba_arquivados"></span> (<span id="nArquivados">0</span>)</button>
 </div>
 
 <div class="filtros">
-  <input type="text" id="fBusca" placeholder="Buscar por nome ou descrição">
-  <select id="fLinguagem"><option value="">Todas as linguagens</option></select>
+  <input type="text" id="fBusca" data-t-ph="busca">
+  <select id="fLinguagem"><option value="" data-t="todas_linguagens"></option></select>
   <select id="fStatus">
-    <option value="">Todos os status</option>
-    <option value="pendente">Sem marcação</option>
-    <option value="arquivar">Arquivar</option>
-    <option value="excluir" class="so-excluir">Excluir</option>
+    <option value="" data-t="todos_status"></option>
+    <option value="pendente" data-t="sem_marcacao"></option>
+    <option value="arquivar" data-t="arquivar"></option>
+    <option value="excluir" class="so-excluir" data-t="excluir"></option>
   </select>
-  <label><input type="checkbox" id="fParado"> <span id="rotFiltroParado">Só parados</span></label>
-  <label><input type="checkbox" id="fSemLocal"> Só não clonados</label>
+  <label><input type="checkbox" id="fParado"> <span data-t="so_parados"></span></label>
+  <label><input type="checkbox" id="fSemLocal"> <span data-t="so_nao_clonados"></span></label>
 </div>
 
 <table>
   <thead>
     <tr>
-      <th data-col="nome">Nome</th>
-      <th data-col="linguagem">Linguagem</th>
-      <th data-col="criado_em">Criado em</th>
-      <th data-col="atualizado_em">Últ. alteração</th>
-      <th data-col="local">Local</th>
-      <th>Status</th>
-      <th style="width:26%">Observação</th>
+      <th data-col="nome" data-t="th_nome"></th>
+      <th data-col="linguagem" data-t="th_linguagem"></th>
+      <th data-col="criado_em" data-t="th_criado"></th>
+      <th data-col="atualizado_em" data-t="th_alterado"></th>
+      <th data-col="local" data-t="th_local"></th>
+      <th data-t="th_status"></th>
+      <th style="width:26%" data-t="th_obs"></th>
     </tr>
   </thead>
   <tbody id="corpo"></tbody>
 </table>
 
-<div class="legenda">
-  <span class="parado">Data em laranja</span> = sem alteração há mais de <span id="legAnos">2</span> anos ·
-  "Local" = existe em alguma pasta de <span id="legPasta"></span> ·
-  Clique no título da coluna para ordenar ·
-  <span class="so-servidor">Marcações são salvas automaticamente no revisao.json.</span>
-  <span class="so-estatico">Suas marcações ficam no navegador até você clicar em "Salvar revisão".</span>
-</div>
+<div class="legenda" id="legenda"></div>
 
 <!-- Janela: clonar -->
 <div class="fundo" id="jClonar">
   <div class="janela">
-    <h2 id="jClonarTitulo">Clonar</h2>
-    <div class="sub">Pasta de destino</div>
+    <h2 id="jClonarTitulo"></h2>
+    <div class="sub" data-t="pasta_destino"></div>
     <div class="linha">
       <input type="text" id="jClonarPasta">
-      <button id="jClonarEscolher">Escolher…</button>
+      <button id="jClonarEscolher" data-t="escolher"></button>
     </div>
     <div class="sub" id="jClonarPrevia"></div>
     <div id="jClonarMsg" style="margin-top:8px; white-space:pre-line"></div>
     <div class="rodape">
-      <button data-fechar>Fechar</button>
-      <button class="principal" id="jClonarOk">Clonar</button>
+      <button data-fechar data-t="fechar"></button>
+      <button class="principal" id="jClonarOk" data-t="clonar"></button>
     </div>
   </div>
 </div>
@@ -167,36 +172,98 @@
 <!-- Janela: aplicar revisão -->
 <div class="fundo" id="jAplicar">
   <div class="janela">
-    <h2>Aplicar revisão no GitHub</h2>
+    <h2 data-t="aplicar_titulo"></h2>
     <div id="jAplicarResumo"></div>
     <div id="jAplicarConfirma">
-      <div class="sub">Digite EXCLUIR para confirmar as exclusões</div>
-      <div class="linha"><input type="text" id="jAplicarTexto" placeholder="EXCLUIR"></div>
+      <div class="sub" id="jAplicarInstrucao"></div>
+      <div class="linha"><input type="text" id="jAplicarTexto"></div>
     </div>
     <div id="jAplicarMsg"></div>
     <div class="rodape">
-      <button data-fechar>Fechar</button>
-      <button class="perigo" id="jAplicarOk">Aplicar</button>
+      <button data-fechar data-t="fechar"></button>
+      <button class="perigo" id="jAplicarOk" data-t="aplicar_botao"></button>
     </div>
   </div>
 </div>
 
 <script>
+// ---------- Textos da interface ----------
+const TEXTOS = {
+  "en": {
+    relatorio: "Report", atualizar: "Refresh from GitHub", atualizando: "Refreshing…",
+    exportar: "Save review (revisao.json)", aplicar: "Apply review",
+    banner_excluir: 'Delete is <b>off</b>. To turn it on, set <code>"permitir_excluir": true</code> in <code>config.json</code> and restart the server. Deleting cannot be undone.',
+    c_ativos: "Active", c_arquivados: "Already archived", c_arquivar: "Marked to archive",
+    c_excluir: "Marked to delete", c_sem_marcacao: "Unmarked", c_parados: "Stale {n}+ years",
+    aba_ativos: "Active", aba_arquivados: "Archived",
+    busca: "Search by name or description", todas_linguagens: "All languages", todos_status: "All statuses",
+    sem_marcacao: "Unmarked", arquivar: "Archive", excluir: "Delete",
+    so_parados: "Only stale {n}+ years", so_nao_clonados: "Only not cloned",
+    th_nome: "Name", th_linguagem: "Language", th_criado: "Created", th_alterado: "Last change",
+    th_local: "Local", th_status: "Status", th_obs: "Notes",
+    legenda: '<span class="parado">Orange date</span> = no changes for more than {n} years · "Local" = exists in a folder under {pasta} · Click a column title to sort · ',
+    legenda_servidor: "Marks are saved automatically to revisao.json.",
+    legenda_estatico: 'Your marks stay in the browser until you click "Save review".',
+    carregado: "{u} · loaded on {d}",
+    tag_arquivado: "archived", clonar: "Clone", desarquivar: "Unarchive", desarquivando: "Unarchiving…",
+    obs_ph: "e.g. migrate, merge with...",
+    salvando: "Saving…", salvo: "Saved", erro_salvar: "Error saving: ", nao_salvo: "Changes not saved to revisao.json",
+    desarquivado: "{nome} unarchived", erro_desarquivar: "Error unarchiving: ",
+    clonar_titulo: "Clone {nome}", pasta_destino: "Destination folder", escolher: "Choose…",
+    vai_criar: "Will create: ", fechar: "Close", clonando: "Cloning…",
+    aplicar_titulo: "Apply review on GitHub", aplicar_botao: "Apply",
+    resumo_arquivar: "Archive ({n}) — reversible", resumo_excluir: "Delete ({n}) — permanent, no trash", nenhum: "none",
+    palavra: "DELETE", digite_para_confirmar: "Type {p} to confirm the deletions", digite_primeiro: "Type {p} to confirm.",
+    aplicando: "Applying on GitHub…", feche_recarregar: "Close to reload the list.",
+    acao_arquivar: "archive", acao_excluir: "delete",
+    relatorio_salvo: "Report saved to ", erro_relatorio: "Report error: ", erro_atualizar: "Error refreshing: "
+  },
+  "pt-BR": {
+    relatorio: "Relatório", atualizar: "Atualizar do GitHub", atualizando: "Atualizando…",
+    exportar: "Salvar revisão (revisao.json)", aplicar: "Aplicar revisão",
+    banner_excluir: 'Excluir está <b>desligado</b>. Para ligar, mude <code>"permitir_excluir": true</code> no <code>config.json</code> e reinicie o servidor. Exclusão não tem volta.',
+    c_ativos: "Ativos", c_arquivados: "Já arquivados", c_arquivar: "Marcados p/ arquivar",
+    c_excluir: "Marcados p/ excluir", c_sem_marcacao: "Sem marcação", c_parados: "Parados +{n} anos",
+    aba_ativos: "Ativos", aba_arquivados: "Arquivados",
+    busca: "Buscar por nome ou descrição", todas_linguagens: "Todas as linguagens", todos_status: "Todos os status",
+    sem_marcacao: "Sem marcação", arquivar: "Arquivar", excluir: "Excluir",
+    so_parados: "Só parados +{n} anos", so_nao_clonados: "Só não clonados",
+    th_nome: "Nome", th_linguagem: "Linguagem", th_criado: "Criado em", th_alterado: "Últ. alteração",
+    th_local: "Local", th_status: "Status", th_obs: "Observação",
+    legenda: '<span class="parado">Data em laranja</span> = sem alteração há mais de {n} anos · "Local" = existe em alguma pasta de {pasta} · Clique no título da coluna para ordenar · ',
+    legenda_servidor: "Marcações são salvas automaticamente no revisao.json.",
+    legenda_estatico: 'Suas marcações ficam no navegador até você clicar em "Salvar revisão".',
+    carregado: "{u} · carregado em {d}",
+    tag_arquivado: "arquivado", clonar: "Clonar", desarquivar: "Desarquivar", desarquivando: "Desarquivando…",
+    obs_ph: "Ex: migrar, juntar com...",
+    salvando: "Salvando…", salvo: "Salvo", erro_salvar: "Erro ao salvar: ", nao_salvo: "Alterações não salvas no revisao.json",
+    desarquivado: "{nome} desarquivado", erro_desarquivar: "Erro ao desarquivar: ",
+    clonar_titulo: "Clonar {nome}", pasta_destino: "Pasta de destino", escolher: "Escolher…",
+    vai_criar: "Vai criar: ", fechar: "Fechar", clonando: "Clonando…",
+    aplicar_titulo: "Aplicar revisão no GitHub", aplicar_botao: "Aplicar",
+    resumo_arquivar: "Arquivar ({n}) — reversível", resumo_excluir: "Excluir ({n}) — permanente, sem lixeira", nenhum: "nenhum",
+    palavra: "EXCLUIR", digite_para_confirmar: "Digite {p} para confirmar as exclusões", digite_primeiro: "Digite {p} para confirmar.",
+    aplicando: "Aplicando no GitHub…", feche_recarregar: "Feche para recarregar a lista.",
+    acao_arquivar: "arquivar", acao_excluir: "excluir",
+    relatorio_salvo: "Relatório salvo em ", erro_relatorio: "Erro no relatório: ", erro_atualizar: "Erro ao atualizar: "
+  }
+};
+
 // O script Python substitui tudo entre os dois marcadores pelos dados reais.
 // O exemplo abaixo serve só para abrir o template direto no navegador e ver o layout.
 const DADOS = /*__DADOS_INICIO__*/{
-  "usuario": "exemplo", "gerado_em": "2026-10-14T10:00:00", "pasta_projetos": "~/projetos", "sep": "/",
-  "anos_parado": 2, "permitir_excluir": false,
+  "usuario": "example", "gerado_em": "2026-10-14T10:00:00", "pasta_projetos": "~/projetos", "sep": "/",
+  "anos_parado": 2, "permitir_excluir": false, "idioma": "en",
   "repos": [
-    {"id": "exemplo/projeto-novo", "nome": "projeto-novo", "dono": "exemplo", "linguagem": "C#", "pasta": "csharp",
+    {"id": "example/new-project", "nome": "new-project", "dono": "example", "linguagem": "C#", "pasta": "csharp",
      "criado_em": "2026-08-12", "atualizado_em": "2026-10-06", "privado": true, "arquivado": false,
-     "descricao": "Exemplo recente", "url": "#", "local": true, "status": "", "obs": ""},
-    {"id": "exemplo/projeto-antigo", "nome": "projeto-antigo", "dono": "exemplo", "linguagem": "JavaScript", "pasta": "javascript",
+     "descricao": "Recent example", "url": "#", "local": true, "status": "", "obs": ""},
+    {"id": "example/old-project", "nome": "old-project", "dono": "example", "linguagem": "JavaScript", "pasta": "javascript",
      "criado_em": "2019-09-22", "atualizado_em": "2019-09-25", "privado": false, "arquivado": false,
-     "descricao": "Exemplo parado", "url": "#", "local": false, "status": "arquivar", "obs": "Teste de 2019"},
-    {"id": "minha-org/ferramenta", "nome": "ferramenta", "dono": "minha-org", "linguagem": "Python", "pasta": "python",
+     "descricao": "Stale example", "url": "#", "local": false, "status": "arquivar", "obs": "Test from 2019"},
+    {"id": "my-org/tool", "nome": "tool", "dono": "my-org", "linguagem": "Python", "pasta": "python",
      "criado_em": "2021-03-02", "atualizado_em": "2022-01-10", "privado": false, "arquivado": true,
-     "descricao": "Exemplo arquivado de uma organização", "url": "#", "local": false, "status": "", "obs": ""}
+     "descricao": "Archived example from an organization", "url": "#", "local": false, "status": "", "obs": ""}
   ]
 }/*__DADOS_FIM__*/;
 
@@ -210,12 +277,56 @@ const SEP = DADOS.sep || "/";
 let ordem = { col: "atualizado_em", asc: true };
 const $ = id => document.getElementById(id);
 
+// Idioma: o escolhido antes neste navegador; senão o do config.json; senão inglês
+let idioma = "en";
+try { idioma = localStorage.getItem("idioma") || DADOS.idioma || "en"; } catch (e) { idioma = DADOS.idioma || "en"; }
+if (!TEXTOS[idioma]) idioma = "en";
+
+// Texto traduzido, trocando {chaves} pelos valores
+function t(chave, valores = {}) {
+  const texto = TEXTOS[idioma][chave] ?? TEXTOS.en[chave] ?? chave;
+  return texto.replace(/\{(\w+)\}/g, (_, k) => valores[k] ?? "");
+}
+
+// Datas: 10/14/2026 3:20 PM (en) ou 14/10/2026 15:20 (pt-BR)
+function dataFmt(iso, comHora = false) {
+  if (!iso) return "—";
+  const [a, m, d] = iso.slice(0, 10).split("-");
+  let texto = idioma === "pt-BR" ? `${d}/${m}/${a}` : `${m}/${d}/${a}`;
+  if (comHora && iso.length > 10) {
+    const h = +iso.slice(11, 13), min = iso.slice(14, 16);
+    texto += idioma === "pt-BR" ? ` ${iso.slice(11, 16)}` : ` ${h % 12 || 12}:${min} ${h >= 12 ? "PM" : "AM"}`;
+  }
+  return texto;
+}
+
+// Mensagem curta no topo (texto longo é cortado com "…"; o texto inteiro aparece ao passar o mouse)
+function avisar(texto) { $("pendente").textContent = texto; $("pendente").title = texto; }
+
+function esc(x) { return String(x ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// Aplica o idioma em todos os textos fixos da página
+function aplicarIdioma() {
+  document.documentElement.lang = idioma;
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t, { n: ANOS }));
+  document.querySelectorAll("[data-t-html]").forEach(el => el.innerHTML = t(el.dataset.tHtml));
+  document.querySelectorAll("[data-t-ph]").forEach(el => el.placeholder = t(el.dataset.tPh));
+  document.querySelectorAll(".idioma button").forEach(b => b.classList.toggle("on", b.dataset.idioma === idioma));
+  $("info").textContent = t("carregado", { u: DADOS.usuario, d: dataFmt(DADOS.gerado_em, true) });
+  $("legenda").innerHTML = t("legenda", { n: ANOS, pasta: esc(DADOS.pasta_projetos || "") })
+    + esc(t(SERVIDOR ? "legenda_servidor" : "legenda_estatico"));
+  $("jAplicarTexto").placeholder = t("palavra");
+}
+
+document.querySelectorAll(".idioma button").forEach(b => b.addEventListener("click", () => {
+  idioma = b.dataset.idioma;
+  try { localStorage.setItem("idioma", idioma); } catch (e) {}
+  aplicarIdioma();
+  desenhar();
+}));
+
 if (SERVIDOR) document.body.classList.add("servidor");
 if (!EXCLUIR) document.body.classList.add("sem-excluir");
-$("rotParado").textContent = `Parados +${ANOS} anos`;
-$("rotFiltroParado").textContent = `Só parados +${ANOS} anos`;
-$("legAnos").textContent = ANOS;
-$("legPasta").textContent = DADOS.pasta_projetos || "";
 
 // Modo estático: recupera marcações guardadas no navegador
 if (!SERVIDOR) {
@@ -231,13 +342,10 @@ repos.forEach(r => {
 });
 let visao = "ativos";   // aba atual: "ativos" ou "arquivados"
 
-function dataBR(iso) { return iso ? iso.slice(0, 10).split("-").reverse().join("/") : "-"; }
-function esc(t) { return String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
-// Chamada ao servidor.py (o token prova que a ordem veio desta página)
+// Chamada ao servidor.py (o token prova que a ordem veio desta página; o idioma volta nas respostas)
 async function api(rota, corpo) {
   const resp = await fetch(rota, { method: "POST",
-    headers: { "Content-Type": "application/json", "X-Token": DADOS.token },
+    headers: { "Content-Type": "application/json", "X-Token": DADOS.token, "X-Idioma": idioma },
     body: JSON.stringify(corpo || {}) });
   const json = await resp.json();
   if (!resp.ok) throw new Error(json.erro || resp.statusText);
@@ -254,15 +362,15 @@ function revisao() {
 let espera;
 function guardarRascunho() {
   if (SERVIDOR) {
-    $("pendente").textContent = "Salvando…";
+    avisar(t("salvando"));
     clearTimeout(espera);
     espera = setTimeout(async () => {
-      try { await api("/api/revisao", { revisao: revisao() }); $("pendente").textContent = "Salvo"; }
-      catch (e) { $("pendente").textContent = "Erro ao salvar: " + e.message; }
+      try { await api("/api/revisao", { revisao: revisao() }); avisar(t("salvo")); }
+      catch (e) { avisar(t("erro_salvar") + e.message); }
     }, 800);
   } else {
     try { localStorage.setItem(CHAVE, JSON.stringify(revisao())); } catch (e) {}
-    $("pendente").textContent = "Alterações não salvas no revisao.json ";
+    avisar(t("nao_salvo"));
   }
 }
 
@@ -289,13 +397,13 @@ function filtrados() {
     (!$("fSemLocal").checked || !r.local)
   ).sort((a, b) => {
     const x = String(a[ordem.col] ?? ""), y = String(b[ordem.col] ?? "");
-    return (ordem.asc ? 1 : -1) * x.localeCompare(y, "pt-BR");
+    return (ordem.asc ? 1 : -1) * x.localeCompare(y, idioma);
   });
 }
 
 function celulaLocal(r) {
   if (r.local) return "✔";
-  return SERVIDOR ? '<button class="btnClonar">Clonar</button>' : "—";
+  return SERVIDOR ? `<button class="btnClonar">${t("clonar")}</button>` : "—";
 }
 
 function desenhar() {
@@ -303,26 +411,26 @@ function desenhar() {
     <tr data-id="${esc(r.id)}">
       <td>
         ${r.privado ? "🔒 " : ""}${r.dono !== DADOS.usuario ? `<span class="dono">${esc(r.dono)}/</span>` : ""}<a href="${esc(r.url)}" target="_blank">${esc(r.nome)}</a>
-        ${r.arquivado ? '<span class="tag">arquivado</span>' : ""}
+        ${r.arquivado ? `<span class="tag">${t("tag_arquivado")}</span>` : ""}
         ${r.descricao ? `<div class="desc">${esc(r.descricao)}</div>` : ""}
       </td>
       <td><span class="tag">${esc(r.linguagem || "—")}</span></td>
-      <td>${dataBR(r.criado_em)}</td>
-      <td class="${r.parado ? "parado" : ""}">${dataBR(r.atualizado_em)}</td>
+      <td>${dataFmt(r.criado_em)}</td>
+      <td class="${r.parado ? "parado" : ""}">${dataFmt(r.atualizado_em)}</td>
       <td>${celulaLocal(r)}</td>
       <td><div class="status">
-        ${r.arquivado && SERVIDOR ? '<button class="btnDesarquivar">Desarquivar</button>' : ""}
+        ${r.arquivado && SERVIDOR ? `<button class="btnDesarquivar">${t("desarquivar")}</button>` : ""}
         ${(r.arquivado ? ["excluir"] : ["arquivar", "excluir"]).filter(s => s !== "excluir" || EXCLUIR).map(s =>
-          `<button data-s="${s}" class="${r.status === s ? "on" : ""}">${s[0].toUpperCase() + s.slice(1)}</button>`).join("")}
+          `<button data-s="${s}" class="${r.status === s ? "on" : ""}">${t(s)}</button>`).join("")}
       </div></td>
-      <td><input type="text" value="${esc(r.obs)}" placeholder="Ex: migrar, juntar com..."></td>
+      <td><input type="text" value="${esc(r.obs)}" placeholder="${esc(t("obs_ph"))}"></td>
     </tr>`).join("");
   contar();
 }
 
 const repoDaLinha = el => repos.find(x => x.id === el.closest("tr").dataset.id);
 
-// Cliques na tabela: status e clonar
+// Cliques na tabela: status, clonar e desarquivar
 $("corpo").addEventListener("click", e => {
   const b = e.target.closest(".status button[data-s]");
   if (b) {
@@ -338,18 +446,18 @@ $("corpo").addEventListener("click", e => {
 // Desarquivar: age na hora (é reversível); o repositório volta para a aba Ativos
 async function desarquivar(botao, r) {
   botao.disabled = true;
-  botao.textContent = "Desarquivando…";
+  botao.textContent = t("desarquivando");
   try {
     const res = await api("/api/desarquivar", { id: r.id });
     if (!res.ok) throw new Error(res.msg);
     r.arquivado = false;
     r.status = "";
-    $("pendente").textContent = r.nome + " desarquivado";
+    avisar(t("desarquivado", { nome: r.nome }));
     desenhar();
   } catch (e) {
-    $("pendente").textContent = "Erro ao desarquivar: " + e.message;
+    avisar(t("erro_desarquivar") + e.message);
     botao.disabled = false;
-    botao.textContent = "Desarquivar";
+    botao.textContent = t("desarquivar");
   }
 }
 
@@ -381,11 +489,11 @@ document.querySelectorAll("[data-fechar]").forEach(b =>
 // ---------- Clonar ----------
 let repoClonar = null;
 function previaClonar() {
-  $("jClonarPrevia").textContent = "Vai criar: " + $("jClonarPasta").value.replace(/[\\/]+$/, "") + SEP + repoClonar.nome;
+  $("jClonarPrevia").textContent = t("vai_criar") + $("jClonarPasta").value.replace(/[\\/]+$/, "") + SEP + repoClonar.nome;
 }
 function abrirClonar(r) {
   repoClonar = r;
-  $("jClonarTitulo").textContent = "Clonar " + r.nome;
+  $("jClonarTitulo").textContent = t("clonar_titulo", { nome: r.nome });
   $("jClonarPasta").value = (DADOS.pasta_projetos || "") + SEP + (r.pasta || "outros");
   $("jClonarMsg").textContent = "";
   $("jClonarOk").disabled = false;
@@ -401,7 +509,7 @@ $("jClonarEscolher").addEventListener("click", async () => {
 });
 $("jClonarOk").addEventListener("click", async () => {
   $("jClonarOk").disabled = true;
-  $("jClonarMsg").textContent = "Clonando…";
+  $("jClonarMsg").textContent = t("clonando");
   try {
     const res = await api("/api/clonar", { id: repoClonar.id, pasta: $("jClonarPasta").value });
     $("jClonarMsg").innerHTML = `<span class="${res.ok ? "ok" : "erro"}">${esc(res.msg)}</span>`;
@@ -419,10 +527,11 @@ const paraExcluir = () => EXCLUIR ? repos.filter(r => r.status === "excluir") : 
 
 $("btnAplicar").addEventListener("click", () => {
   const arq = paraArquivar(), exc = paraExcluir();
-  const nomes = l => l.map(r => esc(r.id)).join(", ") || "nenhum";
-  $("jAplicarResumo").innerHTML = `
-    <div class="aviso">Arquivar (${arq.length}) — reversível</div><div class="lista">${nomes(arq)}</div>
-    ` + (EXCLUIR ? `<div class="erro">Excluir (${exc.length}) — permanente, sem lixeira</div><div class="lista">${nomes(exc)}</div>` : "");
+  const nomes = l => l.map(r => esc(r.id)).join(", ") || t("nenhum");
+  $("jAplicarResumo").innerHTML =
+    `<div class="aviso">${t("resumo_arquivar", { n: arq.length })}</div><div class="lista">${nomes(arq)}</div>`
+    + (EXCLUIR ? `<div class="erro">${t("resumo_excluir", { n: exc.length })}</div><div class="lista">${nomes(exc)}</div>` : "");
+  $("jAplicarInstrucao").textContent = t("digite_para_confirmar", { p: t("palavra") });
   $("jAplicarConfirma").style.display = exc.length ? "" : "none";
   $("jAplicarTexto").value = "";
   $("jAplicarMsg").textContent = "";
@@ -431,17 +540,17 @@ $("btnAplicar").addEventListener("click", () => {
 });
 
 $("jAplicarOk").addEventListener("click", async () => {
-  if (paraExcluir().length && $("jAplicarTexto").value !== "EXCLUIR") {
-    $("jAplicarMsg").innerHTML = '<span class="erro">Digite EXCLUIR para confirmar.</span>';
+  if (paraExcluir().length && $("jAplicarTexto").value !== t("palavra")) {
+    $("jAplicarMsg").innerHTML = `<span class="erro">${t("digite_primeiro", { p: t("palavra") })}</span>`;
     return;
   }
   $("jAplicarOk").disabled = true;
-  $("jAplicarMsg").textContent = "Aplicando no GitHub…";
+  $("jAplicarMsg").textContent = t("aplicando");
   try {
     const { resultados } = await api("/api/aplicar", { revisao: revisao(), confirmacao: $("jAplicarTexto").value });
     $("jAplicarMsg").innerHTML = resultados.map(x =>
-      `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${x.acao}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`).join("")
-      + '<div class="sub" style="margin-top:8px">Feche para recarregar a lista.</div>';
+      `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${t("acao_" + x.acao)}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`).join("")
+      + `<div class="sub" style="margin-top:8px">${t("feche_recarregar")}</div>`;
     $("jAplicar").querySelector("[data-fechar]").onclick = () => location.reload();
   } catch (e) {
     $("jAplicarMsg").innerHTML = `<span class="erro">${esc(e.message)}</span>`;
@@ -453,16 +562,20 @@ $("jAplicarOk").addEventListener("click", async () => {
 $("btnRelatorio").addEventListener("click", async () => {
   try {
     const { arquivo } = await api("/api/relatorio");
-    $("pendente").textContent = "Relatório salvo em " + arquivo;
-  } catch (e) { $("pendente").textContent = "Erro no relatório: " + e.message; }
+    avisar(t("relatorio_salvo") + arquivo);
+  } catch (e) { avisar(t("erro_relatorio") + e.message); }
 });
 
 // ---------- Atualizar do GitHub ----------
 $("btnAtualizar").addEventListener("click", async () => {
   $("btnAtualizar").disabled = true;
-  $("btnAtualizar").textContent = "Atualizando…";
+  $("btnAtualizar").textContent = t("atualizando");
   try { await api("/api/atualizar"); location.reload(); }
-  catch (e) { alert("Erro ao atualizar: " + e.message); $("btnAtualizar").disabled = false; }
+  catch (e) {
+    avisar(t("erro_atualizar") + e.message);
+    $("btnAtualizar").disabled = false;
+    $("btnAtualizar").textContent = t("atualizar");
+  }
 });
 
 // ---------- Salvar revisão (modo estático) ----------
@@ -478,14 +591,14 @@ $("btnExportar").addEventListener("click", async () => {
       a.href = URL.createObjectURL(new Blob([texto], { type: "application/json" }));
       a.download = "revisao.json"; a.click();
     }
-    $("pendente").textContent = "";
+    avisar("");
   } catch (e) { /* usuário cancelou */ }
 });
 
-// Preenche o filtro de linguagens e o cabeçalho
+// Preenche o filtro de linguagens, aplica o idioma e desenha a tabela
 [...new Set(repos.map(r => r.linguagem || "—"))].sort().forEach(l =>
   $("fLinguagem").insertAdjacentHTML("beforeend", `<option>${esc(l)}</option>`));
-$("info").textContent = `${DADOS.usuario} · carregado em ${dataBR(DADOS.gerado_em)} ${DADOS.gerado_em.slice(11, 16)}`;
+aplicarIdioma();
 desenhar();
 </script>
 </body>

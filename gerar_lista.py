@@ -13,6 +13,9 @@ import webbrowser
 from datetime import datetime
 
 from config import BASE, CONFIG
+from i18n import t, idioma_valido
+
+IDIOMA = idioma_valido(CONFIG["idioma"])   # idioma das mensagens no terminal
 
 PASTA_PROJETOS = CONFIG["pasta_projetos"]
 TEMPLATE = BASE / "template.html"
@@ -32,10 +35,9 @@ def rodar_gh(*args):
     try:
         res = subprocess.run(["gh", *args], capture_output=True, text=True, encoding="utf-8")
     except FileNotFoundError:
-        raise SystemExit("GitHub CLI (gh) não encontrado. Instale em https://cli.github.com e rode: gh auth login")
+        raise SystemExit(t(IDIOMA, "sem_gh"))
     if res.returncode != 0:
-        raise SystemExit("Erro ao chamar o gh:\n" + res.stderr.strip()
-                         + "\nSe não estiver logado, rode: gh auth login")
+        raise SystemExit(t(IDIOMA, "erro_gh", e=res.stderr.strip()))
     return res.stdout
 
 
@@ -106,6 +108,7 @@ def montar_dados(repos, revisao, usuario):
         "sep": os.sep,
         "anos_parado": CONFIG["anos_parado"],
         "permitir_excluir": CONFIG["permitir_excluir"],
+        "idioma": IDIOMA,
         "repos": lista,
     }
 
@@ -124,11 +127,11 @@ def gerar_html_texto(dados):
 
 
 def main():
-    print("Buscando repositórios no GitHub...")
+    print(t(IDIOMA, "buscando"))
     dados = montar_dados(buscar_repos(), carregar_revisao(), usuario_logado())
     SAIDA.parent.mkdir(exist_ok=True)
     SAIDA.write_text(gerar_html_texto(dados), encoding="utf-8")
-    print(f"{len(dados['repos'])} repositórios. Página gerada em: {SAIDA}")
+    print(t(IDIOMA, "pagina_gerada", n=len(dados["repos"]), p=SAIDA))
     webbrowser.open(SAIDA.as_uri())
 
 

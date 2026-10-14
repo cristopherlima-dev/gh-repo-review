@@ -17,6 +17,7 @@ Feito só com a biblioteca padrão do Python e o [GitHub CLI](https://cli.github
 - **Aplicar revisão** para arquivar/excluir no GitHub, com confirmação
 - **Desarquivar** pela aba Arquivados
 - **Relatório em HTML** do que foi excluído, arquivado e clonado, refletindo a situação atual (ex.: "pasta removida", "desarquivado em ...")
+- Interface e relatórios em **inglês** ou **português (Brasil)**, trocando com um clique nas bandeiras
 - Funciona em **Windows, macOS e Linux**
 
 ## Requisitos
@@ -87,6 +88,7 @@ Na primeira execução é criado um `config.json` a partir do `config.example.js
 | `permitir_excluir` | `false` | **Excluir vem desligado.** Com `false`, o botão some e o servidor recusa exclusões |
 | `incluir_organizacoes` | `false` | Lista também os repositórios das organizações de que você participa |
 | `abrir_navegador` | `true` | Abre o navegador sozinho ao iniciar |
+| `idioma` | `en` | Idioma na primeira vez: `en` ou `pt-BR`. Depois, a página lembra a bandeira que você clicou |
 | `pasta_sem_linguagem` | `outros` | Pasta usada para repositórios sem linguagem detectada |
 | `apelidos` | ver arquivo | Linguagem no GitHub → nome da pasta (ex.: `"C#": "csharp"`). As demais viram minúsculo (`Python` → `python`) |
 
@@ -97,8 +99,10 @@ O `config.json` e a pasta de dados estão no `.gitignore` — suas configuraçõ
 1. Na aba **Ativos**, marque **Arquivar** ou **Excluir** e escreva observações. Sem marcação = manter.
 2. Clique em **Clonar** para clonar um repositório que ainda não está no seu computador.
 3. Clique em **Aplicar revisão** para arquivar/excluir no GitHub. Exclusões exigem digitar `EXCLUIR`.
+
+> A interface abre em inglês por padrão. Clique na bandeira **PT-BR** no topo (ou use `"idioma": "pt-BR"` no `config.json`).
 4. Na aba **Arquivados**, clique em **Desarquivar** se mudar de ideia.
-5. Clique em **Relatório** para gerar o relatório em HTML em `<pasta_dados>/relatorios/`.
+5. Clique em **Relatório** para gerar o relatório em HTML em `<pasta_dados>/relatorios/` (no idioma selecionado).
 
 | Ação | Efeito | Reversível? |
 |---|---|---|
@@ -122,7 +126,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 
 - O servidor só escuta em `127.0.0.1` (o seu próprio computador).
 - Cada sessão usa um token aleatório: só a página aberta pelo servidor consegue enviar comandos.
-- Excluir vem desligado, precisa da permissão `delete_repo` no `gh` e da palavra `EXCLUIR` para confirmar.
+- Excluir vem desligado, precisa da permissão `delete_repo` no `gh` e da palavra `EXCLUIR` (ou `DELETE` em inglês) para confirmar.
 - Todas as ações no GitHub passam pelo `gh` com o **seu** login; nada é enviado para outro lugar.
 
 ## Problemas comuns
@@ -145,6 +149,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 | `gerar_lista.py` | Busca os repositórios via `gh` e monta a página. Rodado sozinho, gera uma versão estática, só de leitura, em `saida/` |
 | `relatorio.py` | Histórico de ações e relatório em HTML |
 | `config.py` | Lê o `config.json` |
+| `i18n.py` | Mensagens do servidor e do relatório em inglês e português |
 | `template.html` | A página (HTML/CSS/JS, sem frameworks) |
 | `abrir.bat` / `abrir.sh` | Lançadores para Windows / macOS-Linux |
 

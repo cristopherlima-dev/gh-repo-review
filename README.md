@@ -8,7 +8,7 @@ Built with Python's standard library and the official [GitHub CLI](https://cli.g
 
 ![gh-repo-review screenshot](docs/screenshot.png)
 
-> The interface is in Portuguese (Brazil). The buttons are simple: **Arquivar** = archive, **Excluir** = delete, **Clonar** = clone, **Desarquivar** = unarchive, **Aplicar revisão** = apply review, **Relatório** = report.
+> The interface is available in **English** and **Portuguese (Brazil)** — switch with the flags at the top of the page.
 
 ## Features
 
@@ -19,6 +19,7 @@ Built with Python's standard library and the official [GitHub CLI](https://cli.g
 - **Apply review** to archive/delete on GitHub, with confirmation
 - **Unarchive** from the Archived tab
 - **HTML report** of what was deleted, archived and cloned, reflecting the current state (e.g. "folder removed", "unarchived on ...")
+- Interface and reports in **English** or **Portuguese (Brazil)**, switchable with one click
 - Works on **Windows, macOS and Linux**
 
 ## Requirements
@@ -89,6 +90,7 @@ On the first run a `config.json` is created from `config.example.json`. **Open i
 | `permitir_excluir` | `false` | **Delete is off by default.** When `false`, the Delete button is hidden and the server refuses deletions |
 | `incluir_organizacoes` | `false` | Also list repositories from organizations you belong to |
 | `abrir_navegador` | `true` | Open the browser automatically on start |
+| `idioma` | `en` | Language on first open: `en` or `pt-BR`. After that, the page remembers the flag you clicked |
 | `pasta_sem_linguagem` | `outros` | Folder used for repositories with no detected language |
 | `apelidos` | see file | GitHub language → folder name (e.g. `"C#": "csharp"`). Others become lowercase (`Python` → `python`) |
 
@@ -96,11 +98,11 @@ On the first run a `config.json` is created from `config.example.json`. **Open i
 
 ## How to use
 
-1. In the **Ativos** (Active) tab, mark repositories as **Arquivar** (archive) or **Excluir** (delete) and add notes. No mark = keep.
-2. Click **Clonar** to clone a repository that isn't on your machine yet.
-3. Click **Aplicar revisão** to archive/delete on GitHub. Deletions require typing `EXCLUIR`.
-4. In the **Arquivados** (Archived) tab, click **Desarquivar** to unarchive.
-5. Click **Relatório** to generate the HTML report in `<pasta_dados>/relatorios/`.
+1. In the **Active** tab, mark repositories as **Archive** or **Delete** and add notes. No mark = keep.
+2. Click **Clone** to clone a repository that isn't on your machine yet.
+3. Click **Apply review** to archive/delete on GitHub. Deletions require typing `DELETE`.
+4. In the **Archived** tab, click **Unarchive** to undo an archive.
+5. Click **Report** to generate the HTML report in `<pasta_dados>/relatorios/` (in the language currently selected).
 
 | Action | Effect | Reversible? |
 |---|---|---|
@@ -124,7 +126,7 @@ Everything stays on your machine, inside `pasta_dados`:
 
 - The server only listens on `127.0.0.1` (your own computer).
 - Each session uses a random token: only the page opened by the server can send commands.
-- Deleting is off by default, needs the `delete_repo` permission in `gh` and the word `EXCLUIR` to confirm.
+- Deleting is off by default, needs the `delete_repo` permission in `gh` and the word `DELETE` (or `EXCLUIR` in Portuguese) to confirm.
 - All GitHub actions go through `gh` with **your** login; nothing is sent anywhere else.
 
 ## Troubleshooting
@@ -146,6 +148,7 @@ Everything stays on your machine, inside `pasta_dados`:
 | `gerar_lista.py` | Fetches repositories via `gh` and builds the page. Run alone, it generates a static, read-only version in `saida/` |
 | `relatorio.py` | Action history and HTML report |
 | `config.py` | Loads `config.json` |
+| `i18n.py` | Server and report messages in English and Portuguese |
 | `template.html` | The page (HTML/CSS/JS, no frameworks) |
 | `abrir.bat` / `abrir.sh` | Launchers for Windows / macOS-Linux |
 

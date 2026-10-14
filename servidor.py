@@ -19,10 +19,18 @@ from config import CONFIG
 from gerar_lista import (PASTA_PROJETOS, REVISAO, buscar_repos, carregar_revisao,
                          montar_dados, existe_local, gerar_html_texto, usuario_logado)
 from relatorio import registrar, gerar_relatorio
+from i18n import t, idioma_valido
 
 PORTA = CONFIG["porta"]
 TOKEN = secrets.token_hex(16)   # senha da sessão: só a página gerada por este servidor pode dar ordens
 cache = {"dados": None}         # lista de repositórios em memória (evita chamar o GitHub a cada clique)
+IDIOMA = idioma_valido(CONFIG["idioma"])   # idioma do terminal e padrão das respostas
+pedido = {"idioma": IDIOMA}     # idioma do pedido atual (vem da página; o servidor atende um pedido por vez)
+
+
+def msg(chave, **valores):
+    """Mensagem no idioma escolhido na página."""
+    return t(pedido["idioma"], chave, **valores)
 
 
 # ---------- ações ----------
@@ -59,13 +67,12 @@ def escolher_pasta(inicial):
         import tkinter
         from tkinter import filedialog
     except ImportError:
-        raise RuntimeError("tkinter não está instalado (no Linux: sudo apt install python3-tk). "
-                           "Digite o caminho no campo.")
+        raise RuntimeError(msg("sem_tkinter"))
     raiz = tkinter.Tk()
     raiz.withdraw()                       # esconde a janela principal vazia do tkinter
     raiz.attributes("-topmost", True)     # garante que a janela apareça na frente do navegador
     pasta = filedialog.askdirectory(initialdir=inicial or str(PASTA_PROJETOS),
-                                    title="Escolha a pasta onde clonar")
+                                    title=msg("titulo_pasta"))
     raiz.destroy()
     return str(Path(pasta)) if pasta else ""
 
@@ -80,34 +87,34 @@ def clonar(repo_id, pasta):
     r = repo_por_id(repo_id)
     destino = Path(pasta).expanduser() / r["nome"]
     if destino.exists():
-        return False, f"A pasta {destino} já existe."
+        return False, msg("pasta_existe", p=destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
-    ok, msg = gh("repo", "clone", repo_id, str(destino))
+    ok, saida = gh("repo", "clone", repo_id, str(destino))
     if not ok:
-        return False, msg
+        return False, saida
 
     # Confere se o clone ficou completo: tem a pasta .git e o último commit pode ser lido
     if not (destino / ".git").exists():
-        return False, f"O gh terminou, mas não há pasta .git em {destino}."
+        return False, msg("sem_pasta_git", p=destino)
     log = subprocess.run(["git", "-C", str(destino), "log", "-1", "--format=%h %s (%cd)", "--date=short"],
                          capture_output=True, text=True, encoding="utf-8")
-    ultimo = log.stdout.strip() or "repositório vazio, sem commits"
+    ultimo = log.stdout.strip() or msg("repo_vazio")
 
     r["local"] = existe_local(r["nome"])
     registrar("clonado", r, str(destino))
-    return True, f"✔ Clonado em {destino}\nÚltimo commit: {ultimo}"
+    return True, msg("clonado_ok", p=destino, c=ultimo)
 
 
 def desarquivar(repo_id):
     r = repo_por_id(repo_id)
-    ok, msg = gh("repo", "unarchive", repo_id, "--yes")
+    ok, saida = gh("repo", "unarchive", repo_id, "--yes")
     if ok:
         r["arquivado"] = False
         registrar("desarquivado", r)
         revisao = carregar_revisao()
         limpar_status(revisao, r)   # evita que seja arquivado de novo no próximo "Aplicar"
         salvar_revisao(revisao)
-    return ok, msg or "Desarquivado"
+    return ok, saida or msg("desarquivado_ok")
 
 
 def aplicar(revisao):
@@ -116,23 +123,22 @@ def aplicar(revisao):
     resultados = []
     for r in list(cache["dados"]["repos"]):
         if r["status"] == "arquivar" and not r["arquivado"]:
-            ok, msg = gh("repo", "archive", r["id"], "--yes")
+            ok, saida = gh("repo", "archive", r["id"], "--yes")
             if ok:
                 r["arquivado"] = True
                 registrar("arquivado", r)
                 limpar_status(revisao, r)   # já está arquivado; a marcação cumpriu o papel
-            resultados.append({"id": r["id"], "acao": "arquivar", "ok": ok, "msg": msg})
+            resultados.append({"id": r["id"], "acao": "arquivar", "ok": ok, "msg": saida})
         elif r["status"] == "excluir":
             if not CONFIG["permitir_excluir"]:
-                resultados.append({"id": r["id"], "acao": "excluir", "ok": False,
-                                   "msg": "exclusão desligada (permitir_excluir no config.json)"})
+                resultados.append({"id": r["id"], "acao": "excluir", "ok": False, "msg": msg("excluir_desligado")})
                 continue
-            ok, msg = gh("repo", "delete", r["id"], "--yes")
+            ok, saida = gh("repo", "delete", r["id"], "--yes")
             if ok:
                 registrar("excluido", r)
                 cache["dados"]["repos"].remove(r)
                 revisao.pop(r["id"], None)
-            resultados.append({"id": r["id"], "acao": "excluir", "ok": ok, "msg": msg})
+            resultados.append({"id": r["id"], "acao": "excluir", "ok": ok, "msg": saida})
     salvar_revisao(revisao)
     return resultados
 
@@ -153,11 +159,12 @@ class Manipulador(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self.responder(200, gerar_html_texto(cache["dados"]), "text/html")
         else:
-            self.responder(404, '{"erro": "não encontrado"}')
+            self.responder(404, json.dumps({"erro": msg("nao_encontrado")}, ensure_ascii=False))
 
     def do_POST(self):
+        pedido["idioma"] = idioma_valido(self.headers.get("X-Idioma"), IDIOMA)
         if self.headers.get("X-Token") != TOKEN:
-            return self.responder(403, '{"erro": "token inválido"}')
+            return self.responder(403, json.dumps({"erro": msg("token_invalido")}, ensure_ascii=False))
         tamanho = int(self.headers.get("Content-Length", 0))
         corpo = json.loads(self.rfile.read(tamanho) or "{}")
         try:
@@ -174,19 +181,20 @@ class Manipulador(BaseHTTPRequestHandler):
                 resposta = {"ok": ok, "msg": msg}
             elif self.path == "/api/aplicar":
                 tem_exclusao = any(v.get("status") == "excluir" for v in corpo["revisao"].values())
-                if tem_exclusao and CONFIG["permitir_excluir"] and corpo.get("confirmacao") != "EXCLUIR":
-                    return self.responder(400, '{"erro": "confirmação de exclusão ausente"}')
+                confirmado = corpo.get("confirmacao") in ("DELETE", "EXCLUIR")   # palavra em inglês ou português
+                if tem_exclusao and CONFIG["permitir_excluir"] and not confirmado:
+                    return self.responder(400, json.dumps({"erro": msg("confirmacao_ausente")}, ensure_ascii=False))
                 resposta = {"resultados": aplicar(corpo["revisao"])}
             elif self.path == "/api/relatorio":
                 atualizar_cache()   # pega a situação real do GitHub antes de montar o relatório
-                arquivo = gerar_relatorio(cache["dados"]["usuario"], cache["dados"]["repos"])
+                arquivo = gerar_relatorio(cache["dados"]["usuario"], cache["dados"]["repos"], pedido["idioma"])
                 webbrowser.open(arquivo.as_uri())   # abre o relatório numa nova aba
                 resposta = {"arquivo": str(arquivo)}
             elif self.path == "/api/atualizar":
                 atualizar_cache()
                 resposta = {"ok": True}
             else:
-                return self.responder(404, '{"erro": "rota não encontrada"}')
+                return self.responder(404, json.dumps({"erro": msg("nao_encontrado")}, ensure_ascii=False))
             self.responder(200, json.dumps(resposta, ensure_ascii=False))
         except Exception as erro:
             self.responder(500, json.dumps({"erro": str(erro)}, ensure_ascii=False))
@@ -197,29 +205,28 @@ class Manipulador(BaseHTTPRequestHandler):
 
 def main():
     if not shutil.which("gh"):
-        raise SystemExit("GitHub CLI (gh) não encontrado. Instale em https://cli.github.com e rode: gh auth login")
+        raise SystemExit(t(IDIOMA, "sem_gh"))
     if not shutil.which("git"):
-        raise SystemExit("git não encontrado. Instale em https://git-scm.com")
+        raise SystemExit(t(IDIOMA, "sem_git"))
 
-    print(f"Pasta de projetos: {PASTA_PROJETOS}")
-    print(f"Excluir repositórios: {'LIGADO' if CONFIG['permitir_excluir'] else 'desligado'}")
-    print("Buscando repositórios no GitHub...")
+    print(t(IDIOMA, "inicio_pasta", p=PASTA_PROJETOS))
+    print(t(IDIOMA, "inicio_excluir", s=t(IDIOMA, "ligado" if CONFIG["permitir_excluir"] else "desligado")))
+    print(t(IDIOMA, "buscando"))
     atualizar_cache()
-    print(f"{len(cache['dados']['repos'])} repositórios de {cache['dados']['usuario']} carregados.")
+    print(t(IDIOMA, "carregados", n=len(cache["dados"]["repos"]), u=cache["dados"]["usuario"]))
 
     try:
         servidor = HTTPServer(("127.0.0.1", PORTA), Manipulador)   # 127.0.0.1 = só este computador acessa
     except OSError:
-        raise SystemExit(f"A porta {PORTA} já está em uso. Feche a outra janela do servidor "
-                         "ou mude 'porta' no config.json.")
+        raise SystemExit(t(IDIOMA, "porta_em_uso", p=PORTA))
     endereco = f"http://localhost:{PORTA}"
-    print(f"Página em {endereco}  (feche esta janela ou Ctrl+C para encerrar)")
+    print(t(IDIOMA, "pagina_em", e=endereco))
     if CONFIG["abrir_navegador"]:
         webbrowser.open(endereco)
     try:
         servidor.serve_forever()
     except KeyboardInterrupt:
-        print("Encerrado.")
+        print(t(IDIOMA, "encerrado"))
 
 
 if __name__ == "__main__":

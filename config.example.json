@@ -1,14 +1,15 @@
 {
   "_ajuda": {
-    "pasta_projetos": "Pasta onde ficam seus clones, organizada por linguagem. Ex.: D:\\PROJETOS (Windows) ou ~/projetos (Linux/macOS)",
-    "pasta_dados": "Onde ficam revisao.json, historico.json e relatorios/. Relativo = dentro da pasta do projeto. Aponte para uma pasta com backup (Google Drive, OneDrive...) se quiser cópia de segurança",
-    "porta": "Porta local do servidor: http://localhost:PORTA",
-    "anos_parado": "Repositórios sem push há mais anos que isso aparecem em laranja",
-    "permitir_excluir": "false = botão Excluir escondido e bloqueado no servidor. Exclusão NÃO tem volta",
-    "incluir_organizacoes": "true = lista também os repositórios das organizações de que você participa",
-    "abrir_navegador": "true = abre o navegador sozinho ao iniciar o servidor",
-    "pasta_sem_linguagem": "Pasta usada para repositórios sem linguagem detectada",
-    "apelidos": "Linguagem no GitHub -> nome da pasta. As que não estiverem aqui viram minúsculo (Python -> python)"
+    "pasta_projetos": "Folder with your clones, organized by language. E.g. D:\\PROJETOS (Windows) or ~/projetos (Linux/macOS). On Windows use double backslashes",
+    "pasta_dados": "Where revisao.json, historico.json and relatorios/ are stored. Relative = inside the project folder. Point it to a synced folder (Google Drive, OneDrive...) for backup",
+    "porta": "Local server port: http://localhost:PORT",
+    "anos_parado": "Repositories without a push for longer than this (in years) are highlighted",
+    "permitir_excluir": "false = Delete button hidden and blocked on the server. Deleting CANNOT be undone",
+    "incluir_organizacoes": "true = also list repositories from organizations you belong to",
+    "abrir_navegador": "true = open the browser automatically when the server starts",
+    "idioma": "Interface language on first open: en or pt-BR (the page remembers your choice afterwards)",
+    "pasta_sem_linguagem": "Folder used for repositories with no detected language",
+    "apelidos": "GitHub language -> folder name. Languages not listed become lowercase (Python -> python)"
   },
   "pasta_projetos": "~/projetos",
   "pasta_dados": "dados",
@@ -17,6 +18,7 @@
   "permitir_excluir": false,
   "incluir_organizacoes": false,
   "abrir_navegador": true,
+  "idioma": "en",
   "pasta_sem_linguagem": "outros",
   "apelidos": {
     "C#": "csharp",
