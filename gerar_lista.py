@@ -16,7 +16,7 @@ from config import BASE, CONFIG
 
 PASTA_PROJETOS = CONFIG["pasta_projetos"]
 TEMPLATE = BASE / "template.html"
-REVISAO = BASE / "revisao.json"
+REVISAO = CONFIG["pasta_dados"] / "revisao.json"
 SAIDA = BASE / "saida" / "repositorios.html"
 
 

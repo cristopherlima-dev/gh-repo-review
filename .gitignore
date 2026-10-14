@@ -1,5 +1,6 @@
 # Configuração e dados de cada usuário (nunca versionar)
 config.json
+dados/
 revisao.json
 historico.json
 relatorios/

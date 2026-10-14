@@ -3,17 +3,17 @@ Histórico das ações (clonar, arquivar, desarquivar, excluir) e relatório em 
 
 O histórico fica em historico.json: uma lista de registros, um por ação (nunca é apagado).
 O relatório cruza o histórico com a situação atual (GitHub + disco) e é salvo em
-relatorios/relatorio_AAAA-MM-DD_HHMM.html
+<pasta_dados>/relatorios/relatorio_AAAA-MM-DD_HHMM.html
 """
 import json
 from datetime import datetime
 from html import escape
 from pathlib import Path
 
-from config import BASE
+from config import CONFIG
 
-HISTORICO = BASE / "historico.json"
-PASTA_RELATORIOS = BASE / "relatorios"
+HISTORICO = CONFIG["pasta_dados"] / "historico.json"
+PASTA_RELATORIOS = CONFIG["pasta_dados"] / "relatorios"
 
 # Ordem e aparência das seções do relatório
 SECOES = [

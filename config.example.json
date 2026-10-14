@@ -1,6 +1,7 @@
 {
   "_ajuda": {
     "pasta_projetos": "Pasta onde ficam seus clones, organizada por linguagem. Ex.: D:\\PROJETOS (Windows) ou ~/projetos (Linux/macOS)",
+    "pasta_dados": "Onde ficam revisao.json, historico.json e relatorios/. Relativo = dentro da pasta do projeto. Aponte para uma pasta com backup (Google Drive, OneDrive...) se quiser cópia de segurança",
     "porta": "Porta local do servidor: http://localhost:PORTA",
     "anos_parado": "Repositórios sem push há mais anos que isso aparecem em laranja",
     "permitir_excluir": "false = botão Excluir escondido e bloqueado no servidor. Exclusão NÃO tem volta",
@@ -10,6 +11,7 @@
     "apelidos": "Linguagem no GitHub -> nome da pasta. As que não estiverem aqui viram minúsculo (Python -> python)"
   },
   "pasta_projetos": "~/projetos",
+  "pasta_dados": "dados",
   "porta": 8765,
   "anos_parado": 2,
   "permitir_excluir": false,

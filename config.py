@@ -16,6 +16,7 @@ ARQ_EXEMPLO = BASE / "config.example.json"
 # Valores usados quando a chave não existir no config.json
 PADRAO = {
     "pasta_projetos": "~/projetos",
+    "pasta_dados": "dados",
     "porta": 8765,
     "anos_parado": 2,
     "permitir_excluir": False,
@@ -36,8 +37,16 @@ def carregar():
         raise SystemExit(f"Erro no {ARQ_CONFIG.name}, linha {erro.lineno}: {erro.msg}. "
                          "Dica: no Windows use barras duplas, ex.: \"D:\\\\PROJETOS\".")
     cfg = {**PADRAO, **{k: v for k, v in dados.items() if not k.startswith("_")}}
-    cfg["pasta_projetos"] = Path(os.path.expandvars(cfg["pasta_projetos"])).expanduser()
+    cfg["pasta_projetos"] = caminho(cfg["pasta_projetos"])
+    # Pasta dos dados de revisão/histórico/relatórios; caminho relativo = dentro da pasta do projeto
+    cfg["pasta_dados"] = BASE / caminho(cfg["pasta_dados"] or "dados")
+    cfg["pasta_dados"].mkdir(parents=True, exist_ok=True)
     return cfg
+
+
+def caminho(texto):
+    """Expande ~ e variáveis de ambiente (%USERPROFILE%, $HOME...)."""
+    return Path(os.path.expandvars(texto)).expanduser()
 
 
 CONFIG = carregar()
