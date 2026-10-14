@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gh-repo-review</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --texto: #1f1f1d; --texto2: #6b6a65; --borda: #e2e1dc;
+    --azul: #185fa5; --azul-bg: #e6f1fb; --verde: #3b6d11; --verde-bg: #eaf3de; --ambar: #854f0b; --ambar-bg: #faeeda;
+    --vermelho: #a32d2d; --vermelho-bg: #fcebeb; --cinza-bg: #f1efe8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1b1a; --card: #242423; --texto: #ecebe6; --texto2: #a3a29c; --borda: #3a3a38;
+      --azul: #85b7eb; --azul-bg: #0c447c; --verde: #97c459; --verde-bg: #27500a; --ambar: #fac775; --ambar-bg: #633806;
+      --vermelho: #f09595; --vermelho-bg: #791f1f; --cinza-bg: #333331;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: var(--bg); color: var(--texto);
+         font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; }
+  .topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .topo .acoes { display: flex; gap: 8px; align-items: center; }
+  .sub { color: var(--texto2); font-size: 13px; }
+  button, select, input[type=text] { font: inherit; color: var(--texto); background: var(--card);
+         border: 1px solid var(--borda); border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--texto2); }
+  button:disabled { opacity: .5; cursor: wait; }
+  button.principal { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
+  button.perigo { color: var(--vermelho); border-color: var(--vermelho); }
+  .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
+  .card .rot { color: var(--texto2); font-size: 12px; }
+  .card .num { font-size: 22px; font-weight: 600; }
+  .filtros { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .filtros input[type=text] { flex: 1; min-width: 200px; }
+  .filtros label { display: flex; align-items: center; gap: 6px; color: var(--texto2); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--texto2); padding: 8px; border-bottom: 1px solid var(--borda); cursor: pointer; user-select: none; white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  td input[type=text] { width: 100%; padding: 4px 8px; }
+  a { color: var(--azul); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .tag { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--cinza-bg); color: var(--texto2); white-space: nowrap; }
+  .parado { color: var(--ambar); font-weight: 600; }
+  .desc { color: var(--texto2); font-size: 12px; }
+  .status { display: flex; gap: 4px; }
+  .status button, .btnClonar { padding: 2px 8px; font-size: 12px; }
+  .status button.on[data-s=manter]   { background: var(--verde-bg);    color: var(--verde);    border-color: var(--verde); }
+  .status button.on[data-s=arquivar] { background: var(--ambar-bg);    color: var(--ambar);    border-color: var(--ambar); }
+  .status button.on[data-s=excluir]  { background: var(--vermelho-bg); color: var(--vermelho); border-color: var(--vermelho); }
+  .abas { display: flex; gap: 4px; margin-bottom: 10px; }
+  .abas button.on { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
+  .legenda { color: var(--texto2); font-size: 12px; margin-top: 8px; }
+  .aviso { color: var(--ambar); font-size: 12px; }
+  .ok { color: var(--verde); } .erro { color: var(--vermelho); }
+  /* Janelas (modais) */
+  .fundo { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 10; }
+  .fundo.aberto { display: flex; }
+  .janela { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 18px; width: min(520px, 92vw); max-height: 85vh; overflow: auto; }
+  .janela h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  .janela .linha { display: flex; gap: 8px; margin: 4px 0 8px; }
+  .janela .linha input { flex: 1; }
+  .janela .rodape { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .janela .lista { color: var(--texto2); font-size: 13px; margin: 2px 0 12px; }
+  .banner { background: var(--cinza-bg); color: var(--texto2); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; display: none; }
+  body.sem-excluir .banner { display: block; }
+  body.sem-excluir .so-excluir { display: none; }
+  .dono { color: var(--texto2); }
+  .so-servidor { display: none; }
+  body.servidor .so-servidor { display: initial; }
+  body.servidor .so-estatico { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div>
+    <h1>gh-repo-review</h1>
+    <div class="sub" id="info"></div>
+  </div>
+  <div class="acoes">
+    <span class="aviso" id="pendente"></span>
+    <button class="so-servidor" id="btnRelatorio">Relatório</button>
+    <button class="so-servidor" id="btnAtualizar">Atualizar do GitHub</button>
+    <button class="so-estatico" id="btnExportar">Salvar revisão (revisao.json)</button>
+    <button class="so-servidor principal" id="btnAplicar">Aplicar revisão</button>
+  </div>
+</div>
+
+<div class="banner" id="bannerExcluir">
+  Excluir está <b>desligado</b>. Para ligar, mude <code>"permitir_excluir": true</code> no <code>config.json</code> e reinicie o servidor. Exclusão não tem volta.
+</div>
+
+<div class="cards">
+  <div class="card"><div class="rot">Ativos</div><div class="num" id="cAtivos">0</div></div>
+  <div class="card"><div class="rot">Já arquivados</div><div class="num" id="cArquivados">0</div></div>
+  <div class="card"><div class="rot">Marcados p/ arquivar</div><div class="num" id="cArquivar">0</div></div>
+  <div class="card"><div class="rot">Marcados p/ excluir</div><div class="num" id="cExcluir">0</div></div>
+  <div class="card"><div class="rot">Sem marcação</div><div class="num" id="cPendente">0</div></div>
+  <div class="card"><div class="rot" id="rotParado">Parados</div><div class="num" id="cParado">0</div></div>
+</div>
+
+<div class="abas">
+  <button data-visao="ativos" class="on">Ativos (<span id="nAtivos">0</span>)</button>
+  <button data-visao="arquivados">Arquivados (<span id="nArquivados">0</span>)</button>
+</div>
+
+<div class="filtros">
+  <input type="text" id="fBusca" placeholder="Buscar por nome ou descrição">
+  <select id="fLinguagem"><option value="">Todas as linguagens</option></select>
+  <select id="fStatus">
+    <option value="">Todos os status</option>
+    <option value="pendente">Sem marcação</option>
+    <option value="arquivar">Arquivar</option>
+    <option value="excluir" class="so-excluir">Excluir</option>
+  </select>
+  <label><input type="checkbox" id="fParado"> <span id="rotFiltroParado">Só parados</span></label>
+  <label><input type="checkbox" id="fSemLocal"> Só não clonados</label>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th data-col="nome">Nome</th>
+      <th data-col="linguagem">Linguagem</th>
+      <th data-col="criado_em">Criado em</th>
+      <th data-col="atualizado_em">Últ. alteração</th>
+      <th data-col="local">Local</th>
+      <th>Status</th>
+      <th style="width:26%">Observação</th>
+    </tr>
+  </thead>
+  <tbody id="corpo"></tbody>
+</table>
+
+<div class="legenda">
+  <span class="parado">Data em laranja</span> = sem alteração há mais de <span id="legAnos">2</span> anos ·
+  "Local" = existe em alguma pasta de <span id="legPasta"></span> ·
+  Clique no título da coluna para ordenar ·
+  <span class="so-servidor">Marcações são salvas automaticamente no revisao.json.</span>
+  <span class="so-estatico">Suas marcações ficam no navegador até você clicar em "Salvar revisão".</span>
+</div>
+
+<!-- Janela: clonar -->
+<div class="fundo" id="jClonar">
+  <div class="janela">
+    <h2 id="jClonarTitulo">Clonar</h2>
+    <div class="sub">Pasta de destino</div>
+    <div class="linha">
+      <input type="text" id="jClonarPasta">
+      <button id="jClonarEscolher">Escolher…</button>
+    </div>
+    <div class="sub" id="jClonarPrevia"></div>
+    <div id="jClonarMsg" style="margin-top:8px; white-space:pre-line"></div>
+    <div class="rodape">
+      <button data-fechar>Fechar</button>
+      <button class="principal" id="jClonarOk">Clonar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Janela: aplicar revisão -->
+<div class="fundo" id="jAplicar">
+  <div class="janela">
+    <h2>Aplicar revisão no GitHub</h2>
+    <div id="jAplicarResumo"></div>
+    <div id="jAplicarConfirma">
+      <div class="sub">Digite EXCLUIR para confirmar as exclusões</div>
+      <div class="linha"><input type="text" id="jAplicarTexto" placeholder="EXCLUIR"></div>
+    </div>
+    <div id="jAplicarMsg"></div>
+    <div class="rodape">
+      <button data-fechar>Fechar</button>
+      <button class="perigo" id="jAplicarOk">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// O script Python substitui tudo entre os dois marcadores pelos dados reais.
+// O exemplo abaixo serve só para abrir o template direto no navegador e ver o layout.
+const DADOS = /*__DADOS_INICIO__*/{
+  "usuario": "exemplo", "gerado_em": "2026-10-14T10:00:00", "pasta_projetos": "~/projetos", "sep": "/",
+  "anos_parado": 2, "permitir_excluir": false,
+  "repos": [
+    {"id": "exemplo/projeto-novo", "nome": "projeto-novo", "dono": "exemplo", "linguagem": "C#", "pasta": "csharp",
+     "criado_em": "2026-08-12", "atualizado_em": "2026-10-06", "privado": true, "arquivado": false,
+     "descricao": "Exemplo recente", "url": "#", "local": true, "status": "", "obs": ""},
+    {"id": "exemplo/projeto-antigo", "nome": "projeto-antigo", "dono": "exemplo", "linguagem": "JavaScript", "pasta": "javascript",
+     "criado_em": "2019-09-22", "atualizado_em": "2019-09-25", "privado": false, "arquivado": false,
+     "descricao": "Exemplo parado", "url": "#", "local": false, "status": "arquivar", "obs": "Teste de 2019"},
+    {"id": "minha-org/ferramenta", "nome": "ferramenta", "dono": "minha-org", "linguagem": "Python", "pasta": "python",
+     "criado_em": "2021-03-02", "atualizado_em": "2022-01-10", "privado": false, "arquivado": true,
+     "descricao": "Exemplo arquivado de uma organização", "url": "#", "local": false, "status": "", "obs": ""}
+  ]
+}/*__DADOS_FIM__*/;
+
+const repos = DADOS.repos;
+const SERVIDOR = !!DADOS.servidor;              // true quando aberto pelo servidor.py
+const CHAVE = "revisao_rascunho_" + DADOS.gerado_em;
+const ANOS = DADOS.anos_parado ?? 2;
+const LIMITE_PARADO = ANOS * 365 * 24 * 60 * 60 * 1000;
+const EXCLUIR = !!DADOS.permitir_excluir;
+const SEP = DADOS.sep || "/";
+let ordem = { col: "atualizado_em", asc: true };
+const $ = id => document.getElementById(id);
+
+if (SERVIDOR) document.body.classList.add("servidor");
+if (!EXCLUIR) document.body.classList.add("sem-excluir");
+$("rotParado").textContent = `Parados +${ANOS} anos`;
+$("rotFiltroParado").textContent = `Só parados +${ANOS} anos`;
+$("legAnos").textContent = ANOS;
+$("legPasta").textContent = DADOS.pasta_projetos || "";
+
+// Modo estático: recupera marcações guardadas no navegador
+if (!SERVIDOR) {
+  try {
+    const rascunho = JSON.parse(localStorage.getItem(CHAVE) || "null");
+    if (rascunho) repos.forEach(r => { if (rascunho[r.id]) Object.assign(r, rascunho[r.id]); });
+  } catch (e) {}
+}
+
+repos.forEach(r => {
+  r.parado = (Date.now() - new Date(r.atualizado_em)) > LIMITE_PARADO;
+  if (r.status === "manter") r.status = "";   // "manter" deixou de existir: sem marcação = manter
+});
+let visao = "ativos";   // aba atual: "ativos" ou "arquivados"
+
+function dataBR(iso) { return iso ? iso.slice(0, 10).split("-").reverse().join("/") : "-"; }
+function esc(t) { return String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// Chamada ao servidor.py (o token prova que a ordem veio desta página)
+async function api(rota, corpo) {
+  const resp = await fetch(rota, { method: "POST",
+    headers: { "Content-Type": "application/json", "X-Token": DADOS.token },
+    body: JSON.stringify(corpo || {}) });
+  const json = await resp.json();
+  if (!resp.ok) throw new Error(json.erro || resp.statusText);
+  return json;
+}
+
+function revisao() {
+  const saida = {};
+  repos.forEach(r => { if (r.status || r.obs) saida[r.id] = { status: r.status, obs: r.obs }; });
+  return saida;
+}
+
+// Guarda as marcações: no servidor grava o revisao.json (com espera de 0,8 s); no estático, no navegador
+let espera;
+function guardarRascunho() {
+  if (SERVIDOR) {
+    $("pendente").textContent = "Salvando…";
+    clearTimeout(espera);
+    espera = setTimeout(async () => {
+      try { await api("/api/revisao", { revisao: revisao() }); $("pendente").textContent = "Salvo"; }
+      catch (e) { $("pendente").textContent = "Erro ao salvar: " + e.message; }
+    }, 800);
+  } else {
+    try { localStorage.setItem(CHAVE, JSON.stringify(revisao())); } catch (e) {}
+    $("pendente").textContent = "Alterações não salvas no revisao.json ";
+  }
+}
+
+function contar() {
+  const ativos = repos.filter(r => !r.arquivado), arquivados = repos.filter(r => r.arquivado);
+  $("cAtivos").textContent = $("nAtivos").textContent = ativos.length;
+  $("cArquivados").textContent = $("nArquivados").textContent = arquivados.length;
+  $("cArquivar").textContent = ativos.filter(r => r.status === "arquivar").length;
+  $("cExcluir").textContent = repos.filter(r => r.status === "excluir").length;
+  $("cPendente").textContent = ativos.filter(r => !r.status).length;
+  $("cParado").textContent = repos.filter(r => r.parado).length;
+}
+
+function filtrados() {
+  const busca = $("fBusca").value.toLowerCase();
+  const ling = $("fLinguagem").value;
+  const st = $("fStatus").value;
+  return repos.filter(r =>
+    (visao === "arquivados" ? r.arquivado : !r.arquivado) &&
+    (r.id + " " + r.descricao).toLowerCase().includes(busca) &&
+    (!ling || (r.linguagem || "—") === ling) &&
+    (!st || (st === "pendente" ? !r.status : r.status === st)) &&
+    (!$("fParado").checked || r.parado) &&
+    (!$("fSemLocal").checked || !r.local)
+  ).sort((a, b) => {
+    const x = String(a[ordem.col] ?? ""), y = String(b[ordem.col] ?? "");
+    return (ordem.asc ? 1 : -1) * x.localeCompare(y, "pt-BR");
+  });
+}
+
+function celulaLocal(r) {
+  if (r.local) return "✔";
+  return SERVIDOR ? '<button class="btnClonar">Clonar</button>' : "—";
+}
+
+function desenhar() {
+  $("corpo").innerHTML = filtrados().map(r => `
+    <tr data-id="${esc(r.id)}">
+      <td>
+        ${r.privado ? "🔒 " : ""}${r.dono !== DADOS.usuario ? `<span class="dono">${esc(r.dono)}/</span>` : ""}<a href="${esc(r.url)}" target="_blank">${esc(r.nome)}</a>
+        ${r.arquivado ? '<span class="tag">arquivado</span>' : ""}
+        ${r.descricao ? `<div class="desc">${esc(r.descricao)}</div>` : ""}
+      </td>
+      <td><span class="tag">${esc(r.linguagem || "—")}</span></td>
+      <td>${dataBR(r.criado_em)}</td>
+      <td class="${r.parado ? "parado" : ""}">${dataBR(r.atualizado_em)}</td>
+      <td>${celulaLocal(r)}</td>
+      <td><div class="status">
+        ${r.arquivado && SERVIDOR ? '<button class="btnDesarquivar">Desarquivar</button>' : ""}
+        ${(r.arquivado ? ["excluir"] : ["arquivar", "excluir"]).filter(s => s !== "excluir" || EXCLUIR).map(s =>
+          `<button data-s="${s}" class="${r.status === s ? "on" : ""}">${s[0].toUpperCase() + s.slice(1)}</button>`).join("")}
+      </div></td>
+      <td><input type="text" value="${esc(r.obs)}" placeholder="Ex: migrar, juntar com..."></td>
+    </tr>`).join("");
+  contar();
+}
+
+const repoDaLinha = el => repos.find(x => x.id === el.closest("tr").dataset.id);
+
+// Cliques na tabela: status e clonar
+$("corpo").addEventListener("click", e => {
+  const b = e.target.closest(".status button[data-s]");
+  if (b) {
+    const r = repoDaLinha(b);
+    r.status = r.status === b.dataset.s ? "" : b.dataset.s;   // clicar de novo desmarca
+    guardarRascunho(); desenhar();
+  }
+  if (e.target.closest(".btnClonar")) abrirClonar(repoDaLinha(e.target));
+  const bd = e.target.closest(".btnDesarquivar");
+  if (bd) desarquivar(bd, repoDaLinha(bd));
+});
+
+// Desarquivar: age na hora (é reversível); o repositório volta para a aba Ativos
+async function desarquivar(botao, r) {
+  botao.disabled = true;
+  botao.textContent = "Desarquivando…";
+  try {
+    const res = await api("/api/desarquivar", { id: r.id });
+    if (!res.ok) throw new Error(res.msg);
+    r.arquivado = false;
+    r.status = "";
+    $("pendente").textContent = r.nome + " desarquivado";
+    desenhar();
+  } catch (e) {
+    $("pendente").textContent = "Erro ao desarquivar: " + e.message;
+    botao.disabled = false;
+    botao.textContent = "Desarquivar";
+  }
+}
+
+// Troca de aba (Ativos / Arquivados)
+document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => {
+  visao = b.dataset.visao;
+  document.querySelectorAll(".abas button").forEach(x => x.classList.toggle("on", x === b));
+  desenhar();
+}));
+
+// Digitação na observação
+$("corpo").addEventListener("input", e => {
+  if (e.target.type !== "text") return;
+  repoDaLinha(e.target).obs = e.target.value;
+  guardarRascunho(); contar();
+});
+
+document.querySelectorAll("th[data-col]").forEach(th => th.addEventListener("click", () => {
+  ordem = { col: th.dataset.col, asc: ordem.col === th.dataset.col ? !ordem.asc : true };
+  desenhar();
+}));
+
+["fBusca", "fLinguagem", "fStatus", "fParado", "fSemLocal"].forEach(id => $(id).addEventListener("input", desenhar));
+
+// Fechar janelas
+document.querySelectorAll("[data-fechar]").forEach(b =>
+  b.addEventListener("click", () => b.closest(".fundo").classList.remove("aberto")));
+
+// ---------- Clonar ----------
+let repoClonar = null;
+function previaClonar() {
+  $("jClonarPrevia").textContent = "Vai criar: " + $("jClonarPasta").value.replace(/[\\/]+$/, "") + SEP + repoClonar.nome;
+}
+function abrirClonar(r) {
+  repoClonar = r;
+  $("jClonarTitulo").textContent = "Clonar " + r.nome;
+  $("jClonarPasta").value = (DADOS.pasta_projetos || "") + SEP + (r.pasta || "outros");
+  $("jClonarMsg").textContent = "";
+  $("jClonarOk").disabled = false;
+  previaClonar();
+  $("jClonar").classList.add("aberto");
+}
+$("jClonarPasta").addEventListener("input", previaClonar);
+$("jClonarEscolher").addEventListener("click", async () => {
+  try {
+    const { pasta } = await api("/api/escolher-pasta", { inicial: $("jClonarPasta").value });
+    if (pasta) { $("jClonarPasta").value = pasta; previaClonar(); }
+  } catch (e) { $("jClonarMsg").innerHTML = `<span class="erro">${esc(e.message)}</span>`; }
+});
+$("jClonarOk").addEventListener("click", async () => {
+  $("jClonarOk").disabled = true;
+  $("jClonarMsg").textContent = "Clonando…";
+  try {
+    const res = await api("/api/clonar", { id: repoClonar.id, pasta: $("jClonarPasta").value });
+    $("jClonarMsg").innerHTML = `<span class="${res.ok ? "ok" : "erro"}">${esc(res.msg)}</span>`;
+    if (res.ok) { repoClonar.local = true; desenhar(); }
+    else $("jClonarOk").disabled = false;
+  } catch (e) {
+    $("jClonarMsg").innerHTML = `<span class="erro">${esc(e.message)}</span>`;
+    $("jClonarOk").disabled = false;
+  }
+});
+
+// ---------- Aplicar revisão ----------
+const paraArquivar = () => repos.filter(r => r.status === "arquivar" && !r.arquivado);
+const paraExcluir = () => EXCLUIR ? repos.filter(r => r.status === "excluir") : [];
+
+$("btnAplicar").addEventListener("click", () => {
+  const arq = paraArquivar(), exc = paraExcluir();
+  const nomes = l => l.map(r => esc(r.id)).join(", ") || "nenhum";
+  $("jAplicarResumo").innerHTML = `
+    <div class="aviso">Arquivar (${arq.length}) — reversível</div><div class="lista">${nomes(arq)}</div>
+    ` + (EXCLUIR ? `<div class="erro">Excluir (${exc.length}) — permanente, sem lixeira</div><div class="lista">${nomes(exc)}</div>` : "");
+  $("jAplicarConfirma").style.display = exc.length ? "" : "none";
+  $("jAplicarTexto").value = "";
+  $("jAplicarMsg").textContent = "";
+  $("jAplicarOk").disabled = !(arq.length || exc.length);
+  $("jAplicar").classList.add("aberto");
+});
+
+$("jAplicarOk").addEventListener("click", async () => {
+  if (paraExcluir().length && $("jAplicarTexto").value !== "EXCLUIR") {
+    $("jAplicarMsg").innerHTML = '<span class="erro">Digite EXCLUIR para confirmar.</span>';
+    return;
+  }
+  $("jAplicarOk").disabled = true;
+  $("jAplicarMsg").textContent = "Aplicando no GitHub…";
+  try {
+    const { resultados } = await api("/api/aplicar", { revisao: revisao(), confirmacao: $("jAplicarTexto").value });
+    $("jAplicarMsg").innerHTML = resultados.map(x =>
+      `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${x.acao}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`).join("")
+      + '<div class="sub" style="margin-top:8px">Feche para recarregar a lista.</div>';
+    $("jAplicar").querySelector("[data-fechar]").onclick = () => location.reload();
+  } catch (e) {
+    $("jAplicarMsg").innerHTML = `<span class="erro">${esc(e.message)}</span>`;
+    $("jAplicarOk").disabled = false;
+  }
+});
+
+// ---------- Relatório ----------
+$("btnRelatorio").addEventListener("click", async () => {
+  try {
+    const { arquivo } = await api("/api/relatorio");
+    $("pendente").textContent = "Relatório salvo em " + arquivo;
+  } catch (e) { $("pendente").textContent = "Erro no relatório: " + e.message; }
+});
+
+// ---------- Atualizar do GitHub ----------
+$("btnAtualizar").addEventListener("click", async () => {
+  $("btnAtualizar").disabled = true;
+  $("btnAtualizar").textContent = "Atualizando…";
+  try { await api("/api/atualizar"); location.reload(); }
+  catch (e) { alert("Erro ao atualizar: " + e.message); $("btnAtualizar").disabled = false; }
+});
+
+// ---------- Salvar revisão (modo estático) ----------
+$("btnExportar").addEventListener("click", async () => {
+  const texto = JSON.stringify(revisao(), null, 2);
+  try {
+    if (window.showSaveFilePicker) {
+      const h = await showSaveFilePicker({ suggestedName: "revisao.json",
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
+      const w = await h.createWritable(); await w.write(texto); await w.close();
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([texto], { type: "application/json" }));
+      a.download = "revisao.json"; a.click();
+    }
+    $("pendente").textContent = "";
+  } catch (e) { /* usuário cancelou */ }
+});
+
+// Preenche o filtro de linguagens e o cabeçalho
+[...new Set(repos.map(r => r.linguagem || "—"))].sort().forEach(l =>
+  $("fLinguagem").insertAdjacentHTML("beforeend", `<option>${esc(l)}</option>`));
+$("info").textContent = `${DADOS.usuario} · carregado em ${dataBR(DADOS.gerado_em)} ${DADOS.gerado_em.slice(11, 16)}`;
+desenhar();
+</script>
+</body>
+</html>

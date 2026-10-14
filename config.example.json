@@ -1,0 +1,27 @@
+{
+  "_ajuda": {
+    "pasta_projetos": "Pasta onde ficam seus clones, organizada por linguagem. Ex.: D:\\PROJETOS (Windows) ou ~/projetos (Linux/macOS)",
+    "porta": "Porta local do servidor: http://localhost:PORTA",
+    "anos_parado": "Repositórios sem push há mais anos que isso aparecem em laranja",
+    "permitir_excluir": "false = botão Excluir escondido e bloqueado no servidor. Exclusão NÃO tem volta",
+    "incluir_organizacoes": "true = lista também os repositórios das organizações de que você participa",
+    "abrir_navegador": "true = abre o navegador sozinho ao iniciar o servidor",
+    "pasta_sem_linguagem": "Pasta usada para repositórios sem linguagem detectada",
+    "apelidos": "Linguagem no GitHub -> nome da pasta. As que não estiverem aqui viram minúsculo (Python -> python)"
+  },
+  "pasta_projetos": "~/projetos",
+  "porta": 8765,
+  "anos_parado": 2,
+  "permitir_excluir": false,
+  "incluir_organizacoes": false,
+  "abrir_navegador": true,
+  "pasta_sem_linguagem": "outros",
+  "apelidos": {
+    "C#": "csharp",
+    "C++": "cpp",
+    "F#": "fsharp",
+    "Batchfile": "batch",
+    "Jupyter Notebook": "python",
+    "Vim Script": "vim"
+  }
+}

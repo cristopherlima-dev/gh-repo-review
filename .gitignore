@@ -1,0 +1,17 @@
+# Configuração e dados de cada usuário (nunca versionar)
+config.json
+revisao.json
+historico.json
+relatorios/
+saida/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
