@@ -1,5 +1,5 @@
 """
-Histórico das ações (clonar, arquivar, desarquivar, excluir) e relatório em HTML.
+Histórico das ações (clonar, arquivar, desarquivar, transferir, excluir) e relatório em HTML.
 
 O histórico fica em historico.json: uma lista de registros, um por ação (nunca é apagado).
 O relatório cruza o histórico com a situação atual (GitHub + disco) e é salvo em
@@ -17,7 +17,7 @@ HISTORICO = CONFIG["pasta_dados"] / "historico.json"
 PASTA_RELATORIOS = CONFIG["pasta_dados"] / "relatorios"
 
 # Ordem e cor das seções do relatório
-SECOES = [("excluido", "#a32d2d"), ("arquivado", "#854f0b"), ("clonado", "#3b6d11")]
+SECOES = [("excluido", "#a32d2d"), ("arquivado", "#854f0b"), ("transferido", "#185fa5"), ("clonado", "#3b6d11")]
 
 
 def carregar_historico():
@@ -73,11 +73,15 @@ def situacao_atual(repos):
             nota = ("nota_desarquivado_em", desarq["data"]) if desarq else ("nota_desarquivado", "")
             arquivados.append({**reg, "obs": r["obs"], "nota": nota})
 
+    # Transferidos: o registro já guarda o endereço novo (na organização)
+    transferidos = [{**h, "nota": None} for h in ultimo_por_id(historico, "transferido").values()]
+
     clonados = [{**h, "nota": None if Path(h["pasta"]).exists() else ("nota_pasta_removida", "")}
                 for h in ultimo_por_id(historico, "clonado").values()]
 
     ordenar = lambda lista: sorted(lista, key=lambda h: h["data"], reverse=True)
-    return {"excluido": ordenar(excluidos), "arquivado": ordenar(arquivados), "clonado": ordenar(clonados)}
+    return {"excluido": ordenar(excluidos), "arquivado": ordenar(arquivados),
+            "transferido": ordenar(transferidos), "clonado": ordenar(clonados)}
 
 
 def gerar_relatorio(usuario, repos, idioma="en"):

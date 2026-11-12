@@ -108,6 +108,7 @@ def montar_dados(repos, revisao, usuario):
         "sep": os.sep,
         "anos_parado": CONFIG["anos_parado"],
         "permitir_excluir": CONFIG["permitir_excluir"],
+        "organizacao_destino": CONFIG["organizacao_destino"],
         "idioma": IDIOMA,
         "repos": lista,
     }

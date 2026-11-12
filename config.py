@@ -21,6 +21,7 @@ PADRAO = {
     "anos_parado": 2,
     "permitir_excluir": False,
     "incluir_organizacoes": False,
+    "organizacao_destino": "",
     "abrir_navegador": True,
     "idioma": "en",
     "pasta_sem_linguagem": "outros",
@@ -41,6 +42,7 @@ def carregar():
                          f"Erro no {ARQ_CONFIG.name}, linha {erro.lineno}. Dica: use barras duplas.")
     cfg = {**PADRAO, **{k: v for k, v in dados.items() if not k.startswith("_")}}
     cfg["pasta_projetos"] = caminho(cfg["pasta_projetos"])
+    cfg["organizacao_destino"] = (cfg["organizacao_destino"] or "").strip()
     # Pasta dos dados de revisão/histórico/relatórios; caminho relativo = dentro da pasta do projeto
     cfg["pasta_dados"] = BASE / caminho(cfg["pasta_dados"] or "dados")
     cfg["pasta_dados"].mkdir(parents=True, exist_ok=True)

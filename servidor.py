@@ -2,7 +2,8 @@
 Servidor local do gh-repo-review.
 
 Serve a página em http://localhost:<porta> e executa as ações pedidas por ela:
-salvar revisão, escolher pasta, clonar, arquivar, desarquivar, excluir e relatório (via git/gh).
+salvar revisão, escolher pasta, clonar, arquivar, desarquivar, transferir para a organização,
+excluir e relatório (via git/gh).
 
 Uso:  python servidor.py   (ou abrir.bat / abrir.sh)
 Para parar: feche a janela ou Ctrl+C.
@@ -25,6 +26,7 @@ PORTA = CONFIG["porta"]
 TOKEN = secrets.token_hex(16)   # senha da sessão: só a página gerada por este servidor pode dar ordens
 cache = {"dados": None}         # lista de repositórios em memória (evita chamar o GitHub a cada clique)
 IDIOMA = idioma_valido(CONFIG["idioma"])   # idioma do terminal e padrão das respostas
+ORG = CONFIG["organizacao_destino"]          # organização que recebe as transferências (vazio = desligado)
 pedido = {"idioma": IDIOMA}     # idioma do pedido atual (vem da página; o servidor atende um pedido por vez)
 
 
@@ -117,8 +119,68 @@ def desarquivar(repo_id):
     return ok, saida or msg("desarquivado_ok")
 
 
+def clones_locais(nome):
+    """Pastas <pasta_projetos>/<linguagem>/<nome> que são clones git (pode haver mais de uma)."""
+    achados = []
+    if PASTA_PROJETOS.exists():
+        for pasta_ling in PASTA_PROJETOS.iterdir():
+            if not pasta_ling.is_dir():
+                continue
+            for p in pasta_ling.iterdir():
+                if p.is_dir() and p.name.lower() == nome.lower() and (p / ".git").exists():
+                    achados.append(p)
+    return achados
+
+
+def atualizar_remote(pasta, id_antigo, id_novo):
+    """
+    Troca 'dono/nome' por 'org/nome' no endereço do origin, mantendo o formato (https ou ssh).
+    Devolve (deu_certo, mensagem); ignora clones cujo origin aponta para outro repositório.
+    """
+    git = lambda *a: subprocess.run(["git", "-C", str(pasta), *a], capture_output=True, text=True, encoding="utf-8")
+    atual = git("remote", "get-url", "origin")
+    if atual.returncode != 0:
+        return False, msg("remote_erro", p=pasta, e=atual.stderr.strip())
+    url = atual.stdout.strip()
+    pos = url.lower().find(id_antigo.lower())
+    if pos < 0:
+        return None, ""   # esse clone é de outro repositório com o mesmo nome: não mexe
+    nova = url[:pos] + id_novo + url[pos + len(id_antigo):]
+    res = git("remote", "set-url", "origin", nova)
+    if res.returncode != 0:
+        return False, msg("remote_erro", p=pasta, e=res.stderr.strip())
+    return True, msg("remote_ok", p=pasta)
+
+
+def transferir(r):
+    """Transfere o repositório para a ORG e atualiza o remote dos clones locais. Devolve (ok, mensagem)."""
+    if not ORG:
+        return False, msg("transferir_desligado")
+    if r["dono"].lower() == ORG.lower():
+        return False, msg("ja_na_org", o=ORG)
+    # O gh não tem comando pronto para transferir; usamos a API REST direto
+    ok, saida = gh("api", "-X", "POST", f"repos/{r['id']}/transfer", "-f", f"new_owner={ORG}")
+    if not ok:
+        return False, saida
+
+    id_novo = f"{ORG}/{r['nome']}"
+    url_nova = f"https://github.com/{id_novo}"
+    linhas = [msg("transferido_ok", u=url_nova)]
+    pastas = []
+    for pasta in clones_locais(r["nome"]):
+        certo, texto = atualizar_remote(pasta, r["id"], id_novo)
+        if certo is not None:
+            linhas.append(texto)
+            if certo:
+                pastas.append(str(pasta))
+    if len(linhas) == 1:
+        linhas.append(msg("remote_nenhum"))
+    registrar("transferido", {**r, "id": id_novo, "url": url_nova}, "; ".join(pastas))
+    return True, "\n".join(linhas)
+
+
 def aplicar(revisao):
-    """Arquiva e exclui no GitHub conforme a revisão. Devolve o resultado de cada um."""
+    """Arquiva, transfere e exclui no GitHub conforme a revisão. Devolve o resultado de cada um."""
     salvar_revisao(revisao)
     resultados = []
     for r in list(cache["dados"]["repos"]):
@@ -129,6 +191,12 @@ def aplicar(revisao):
                 registrar("arquivado", r)
                 limpar_status(revisao, r)   # já está arquivado; a marcação cumpriu o papel
             resultados.append({"id": r["id"], "acao": "arquivar", "ok": ok, "msg": saida})
+        elif r["status"] == "transferir":
+            ok, saida = transferir(r)
+            if ok:
+                cache["dados"]["repos"].remove(r)   # não é mais seu: sai da lista
+                revisao.pop(r["id"], None)
+            resultados.append({"id": r["id"], "acao": "transferir", "ok": ok, "msg": saida})
         elif r["status"] == "excluir":
             if not CONFIG["permitir_excluir"]:
                 resultados.append({"id": r["id"], "acao": "excluir", "ok": False, "msg": msg("excluir_desligado")})
@@ -174,11 +242,11 @@ class Manipulador(BaseHTTPRequestHandler):
             elif self.path == "/api/escolher-pasta":
                 resposta = {"pasta": escolher_pasta(corpo.get("inicial", ""))}
             elif self.path == "/api/clonar":
-                ok, msg = clonar(corpo["id"], corpo["pasta"])
-                resposta = {"ok": ok, "msg": msg}
+                ok, texto = clonar(corpo["id"], corpo["pasta"])
+                resposta = {"ok": ok, "msg": texto}
             elif self.path == "/api/desarquivar":
-                ok, msg = desarquivar(corpo["id"])
-                resposta = {"ok": ok, "msg": msg}
+                ok, texto = desarquivar(corpo["id"])
+                resposta = {"ok": ok, "msg": texto}
             elif self.path == "/api/aplicar":
                 tem_exclusao = any(v.get("status") == "excluir" for v in corpo["revisao"].values())
                 confirmado = corpo.get("confirmacao") in ("DELETE", "EXCLUIR")   # palavra em inglês ou português
@@ -211,6 +279,7 @@ def main():
 
     print(t(IDIOMA, "inicio_pasta", p=PASTA_PROJETOS))
     print(t(IDIOMA, "inicio_excluir", s=t(IDIOMA, "ligado" if CONFIG["permitir_excluir"] else "desligado")))
+    print(t(IDIOMA, "inicio_org", o=ORG or t(IDIOMA, "desligado")))
     print(t(IDIOMA, "buscando"))
     atualizar_cache()
     print(t(IDIOMA, "carregados", n=len(cache["dados"]["repos"]), u=cache["dados"]["usuario"]))

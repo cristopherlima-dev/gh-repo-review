@@ -36,7 +36,7 @@
   .idioma button { border: none; border-radius: 999px; padding: 3px 10px 3px 6px; display: flex; align-items: center; gap: 6px; font-size: 12px; background: transparent; }
   .idioma button.on { background: var(--azul-bg); color: var(--azul); }
   .idioma svg { width: 20px; height: 14px; border-radius: 2px; display: block; }
-  .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .cards { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
   .card { background: var(--card); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
   .card .rot { color: var(--texto2); font-size: 12px; }
   .card .num { font-size: 22px; font-weight: 600; }
@@ -56,6 +56,7 @@
   .status { display: flex; gap: 4px; }
   .status button, .btnClonar { padding: 2px 8px; font-size: 12px; }
   .status button.on[data-s=arquivar] { background: var(--ambar-bg);    color: var(--ambar);    border-color: var(--ambar); }
+  .status button.on[data-s=transferir] { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
   .status button.on[data-s=excluir]  { background: var(--vermelho-bg); color: var(--vermelho); border-color: var(--vermelho); }
   .abas { display: flex; gap: 4px; margin-bottom: 10px; }
   .abas button.on { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
@@ -72,9 +73,12 @@
   .janela .linha input { flex: 1; }
   .janela .rodape { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
   .janela .lista { color: var(--texto2); font-size: 13px; margin: 2px 0 12px; }
+  .azul { color: var(--azul); font-size: 12px; }
+  .det { color: var(--texto2); font-size: 12px; margin-left: 18px; white-space: pre-line; }
   .banner { background: var(--cinza-bg); color: var(--texto2); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 12px; display: none; }
   body.sem-excluir .banner { display: block; }
   body.sem-excluir .so-excluir { display: none; }
+  body.sem-org .so-org { display: none; }
   .dono { color: var(--texto2); }
   .so-servidor { display: none; }
   body.servidor .so-servidor { display: initial; }
@@ -111,6 +115,7 @@
   <div class="card"><div class="rot" data-t="c_ativos"></div><div class="num" id="cAtivos">0</div></div>
   <div class="card"><div class="rot" data-t="c_arquivados"></div><div class="num" id="cArquivados">0</div></div>
   <div class="card"><div class="rot" data-t="c_arquivar"></div><div class="num" id="cArquivar">0</div></div>
+  <div class="card so-org"><div class="rot" id="cTransferirRot"></div><div class="num" id="cTransferir">0</div></div>
   <div class="card"><div class="rot" data-t="c_excluir"></div><div class="num" id="cExcluir">0</div></div>
   <div class="card"><div class="rot" data-t="c_sem_marcacao"></div><div class="num" id="cPendente">0</div></div>
   <div class="card"><div class="rot" data-t="c_parados"></div><div class="num" id="cParado">0</div></div>
@@ -128,6 +133,7 @@
     <option value="" data-t="todos_status"></option>
     <option value="pendente" data-t="sem_marcacao"></option>
     <option value="arquivar" data-t="arquivar"></option>
+    <option value="transferir" class="so-org" data-t="transferir"></option>
     <option value="excluir" class="so-excluir" data-t="excluir"></option>
   </select>
   <label><input type="checkbox" id="fParado"> <span data-t="so_parados"></span></label>
@@ -215,7 +221,9 @@ const TEXTOS = {
     resumo_arquivar: "Archive ({n}) — reversible", resumo_excluir: "Delete ({n}) — permanent, no trash", nenhum: "none",
     palavra: "DELETE", digite_para_confirmar: "Type {p} to confirm the deletions", digite_primeiro: "Type {p} to confirm.",
     aplicando: "Applying on GitHub…", feche_recarregar: "Close to reload the list.",
-    acao_arquivar: "archive", acao_excluir: "delete",
+    acao_arquivar: "archive", acao_excluir: "delete", acao_transferir: "transfer",
+    transferir: "Transfer", transferir_dica: "Transfer to the organization {org}", c_transferir: "Marked to transfer to {org}",
+    resumo_transferir: "Transfer to {org} ({n}) — leaves your account; local clones get the new remote",
     relatorio_salvo: "Report saved to ", erro_relatorio: "Report error: ", erro_atualizar: "Error refreshing: "
   },
   "pt-BR": {
@@ -244,7 +252,9 @@ const TEXTOS = {
     resumo_arquivar: "Arquivar ({n}) — reversível", resumo_excluir: "Excluir ({n}) — permanente, sem lixeira", nenhum: "nenhum",
     palavra: "EXCLUIR", digite_para_confirmar: "Digite {p} para confirmar as exclusões", digite_primeiro: "Digite {p} para confirmar.",
     aplicando: "Aplicando no GitHub…", feche_recarregar: "Feche para recarregar a lista.",
-    acao_arquivar: "arquivar", acao_excluir: "excluir",
+    acao_arquivar: "arquivar", acao_excluir: "excluir", acao_transferir: "transferir",
+    transferir: "Transferir", transferir_dica: "Transferir para a organização {org}", c_transferir: "Marcados p/ transferir ({org})",
+    resumo_transferir: "Transferir para {org} ({n}) — sai da sua conta; os clones locais recebem o remote novo",
     relatorio_salvo: "Relatório salvo em ", erro_relatorio: "Erro no relatório: ", erro_atualizar: "Erro ao atualizar: "
   }
 };
@@ -253,7 +263,7 @@ const TEXTOS = {
 // O exemplo abaixo serve só para abrir o template direto no navegador e ver o layout.
 const DADOS = /*__DADOS_INICIO__*/{
   "usuario": "example", "gerado_em": "2026-10-14T10:00:00", "pasta_projetos": "~/projetos", "sep": "/",
-  "anos_parado": 2, "permitir_excluir": false, "idioma": "en",
+  "anos_parado": 2, "permitir_excluir": false, "organizacao_destino": "my-org", "idioma": "en",
   "repos": [
     {"id": "example/new-project", "nome": "new-project", "dono": "example", "linguagem": "C#", "pasta": "csharp",
      "criado_em": "2026-08-12", "atualizado_em": "2026-10-06", "privado": true, "arquivado": false,
@@ -273,6 +283,7 @@ const CHAVE = "revisao_rascunho_" + DADOS.gerado_em;
 const ANOS = DADOS.anos_parado ?? 2;
 const LIMITE_PARADO = ANOS * 365 * 24 * 60 * 60 * 1000;
 const EXCLUIR = !!DADOS.permitir_excluir;
+const ORG = DADOS.organizacao_destino || "";   // vazio = sem botão Transferir
 const SEP = DADOS.sep || "/";
 let ordem = { col: "atualizado_em", asc: true };
 const $ = id => document.getElementById(id);
@@ -316,6 +327,7 @@ function aplicarIdioma() {
   $("legenda").innerHTML = t("legenda", { n: ANOS, pasta: esc(DADOS.pasta_projetos || "") })
     + esc(t(SERVIDOR ? "legenda_servidor" : "legenda_estatico"));
   $("jAplicarTexto").placeholder = t("palavra");
+  $("cTransferirRot").textContent = t("c_transferir", { org: ORG });
 }
 
 document.querySelectorAll(".idioma button").forEach(b => b.addEventListener("click", () => {
@@ -327,6 +339,7 @@ document.querySelectorAll(".idioma button").forEach(b => b.addEventListener("cli
 
 if (SERVIDOR) document.body.classList.add("servidor");
 if (!EXCLUIR) document.body.classList.add("sem-excluir");
+if (!ORG) document.body.classList.add("sem-org");
 
 // Modo estático: recupera marcações guardadas no navegador
 if (!SERVIDOR) {
@@ -379,6 +392,7 @@ function contar() {
   $("cAtivos").textContent = $("nAtivos").textContent = ativos.length;
   $("cArquivados").textContent = $("nArquivados").textContent = arquivados.length;
   $("cArquivar").textContent = ativos.filter(r => r.status === "arquivar").length;
+  $("cTransferir").textContent = repos.filter(r => r.status === "transferir").length;
   $("cExcluir").textContent = repos.filter(r => r.status === "excluir").length;
   $("cPendente").textContent = ativos.filter(r => !r.status).length;
   $("cParado").textContent = repos.filter(r => r.parado).length;
@@ -406,6 +420,14 @@ function celulaLocal(r) {
   return SERVIDOR ? `<button class="btnClonar">${t("clonar")}</button>` : "—";
 }
 
+// Quais botões de status cada linha mostra
+function botoesStatus(r) {
+  const lista = r.arquivado ? [] : ["arquivar"];
+  if (ORG && r.dono.toLowerCase() !== ORG.toLowerCase()) lista.push("transferir");   // já na organização: sem botão
+  if (EXCLUIR) lista.push("excluir");
+  return lista;
+}
+
 function desenhar() {
   $("corpo").innerHTML = filtrados().map(r => `
     <tr data-id="${esc(r.id)}">
@@ -420,8 +442,8 @@ function desenhar() {
       <td>${celulaLocal(r)}</td>
       <td><div class="status">
         ${r.arquivado && SERVIDOR ? `<button class="btnDesarquivar">${t("desarquivar")}</button>` : ""}
-        ${(r.arquivado ? ["excluir"] : ["arquivar", "excluir"]).filter(s => s !== "excluir" || EXCLUIR).map(s =>
-          `<button data-s="${s}" class="${r.status === s ? "on" : ""}">${t(s)}</button>`).join("")}
+        ${botoesStatus(r).map(s =>
+          `<button data-s="${s}" class="${r.status === s ? "on" : ""}"${s === "transferir" ? ` title="${esc(t("transferir_dica", { org: ORG }))}"` : ""}>${t(s)}</button>`).join("")}
       </div></td>
       <td><input type="text" value="${esc(r.obs)}" placeholder="${esc(t("obs_ph"))}"></td>
     </tr>`).join("");
@@ -523,19 +545,21 @@ $("jClonarOk").addEventListener("click", async () => {
 
 // ---------- Aplicar revisão ----------
 const paraArquivar = () => repos.filter(r => r.status === "arquivar" && !r.arquivado);
+const paraTransferir = () => ORG ? repos.filter(r => r.status === "transferir") : [];
 const paraExcluir = () => EXCLUIR ? repos.filter(r => r.status === "excluir") : [];
 
 $("btnAplicar").addEventListener("click", () => {
-  const arq = paraArquivar(), exc = paraExcluir();
+  const arq = paraArquivar(), trf = paraTransferir(), exc = paraExcluir();
   const nomes = l => l.map(r => esc(r.id)).join(", ") || t("nenhum");
   $("jAplicarResumo").innerHTML =
     `<div class="aviso">${t("resumo_arquivar", { n: arq.length })}</div><div class="lista">${nomes(arq)}</div>`
+    + (ORG ? `<div class="azul">${esc(t("resumo_transferir", { org: ORG, n: trf.length }))}</div><div class="lista">${nomes(trf)}</div>` : "")
     + (EXCLUIR ? `<div class="erro">${t("resumo_excluir", { n: exc.length })}</div><div class="lista">${nomes(exc)}</div>` : "");
   $("jAplicarInstrucao").textContent = t("digite_para_confirmar", { p: t("palavra") });
   $("jAplicarConfirma").style.display = exc.length ? "" : "none";
   $("jAplicarTexto").value = "";
   $("jAplicarMsg").textContent = "";
-  $("jAplicarOk").disabled = !(arq.length || exc.length);
+  $("jAplicarOk").disabled = !(arq.length || trf.length || exc.length);
   $("jAplicar").classList.add("aberto");
 });
 
@@ -549,7 +573,8 @@ $("jAplicarOk").addEventListener("click", async () => {
   try {
     const { resultados } = await api("/api/aplicar", { revisao: revisao(), confirmacao: $("jAplicarTexto").value });
     $("jAplicarMsg").innerHTML = resultados.map(x =>
-      `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${t("acao_" + x.acao)}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`).join("")
+      `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${t("acao_" + x.acao)}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`
+      + (x.ok && x.acao === "transferir" ? `<div class="det">${esc(x.msg)}</div>` : "")).join("")
       + `<div class="sub" style="margin-top:8px">${t("feche_recarregar")}</div>`;
     $("jAplicar").querySelector("[data-fechar]").onclick = () => location.reload();
   } catch (e) {
