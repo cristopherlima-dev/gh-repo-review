@@ -17,7 +17,10 @@ Feito só com a biblioteca padrão do Python e o [GitHub CLI](https://cli.github
 - **Aplicar revisão** para arquivar/excluir no GitHub, com confirmação
 - **Desarquivar** pela aba Arquivados
 - **Transferir** repositórios para uma organização (ex.: a da sua empresa) — os clones locais têm o `git remote` atualizado sozinhos
-- **Relatório em HTML** do que foi excluído, arquivado, transferido e clonado, refletindo a situação atual (ex.: "pasta removida", "desarquivado em ...")
+- **Devolver** um repositório da organização para a sua conta (ex.: transferência indevida)
+- **Liberar p/ dev**: um clique dá Write a um time (ex.: `dev`) num repositório da organização — outro clique tira
+- Os repositórios da organização de destino sempre aparecem na lista; dá para filtrar por dono
+- **Relatório em HTML** do que foi excluído, arquivado, transferido, devolvido e clonado, refletindo a situação atual (ex.: "pasta removida", "desarquivado em ...")
 - Interface e relatórios em **inglês** ou **português (Brasil)**, trocando com um clique nas bandeiras
 - Funciona em **Windows, macOS e Linux**
 
@@ -88,7 +91,9 @@ Na primeira execução é criado um `config.json` a partir do `config.example.js
 | `anos_parado` | `2` | Repositórios sem push há mais tempo que isso ficam destacados |
 | `permitir_excluir` | `false` | **Excluir vem desligado.** Com `false`, o botão some e o servidor recusa exclusões |
 | `incluir_organizacoes` | `false` | Lista também os repositórios das organizações de que você participa |
-| `organizacao_destino` | `""` | Organização que recebe os repositórios marcados como **Transferir**. Vazio = botão Transferir escondido |
+| `organizacao_destino` | `""` | Organização que recebe os repositórios marcados como **Transferir**. Os repositórios dela sempre aparecem, com **Devolver**. Vazio = os dois botões escondidos |
+| `time_dev` | `""` | Time (slug) controlado pelo botão **Liberar p/ dev** (Write). Vazio = botão escondido |
+| `times_ao_transferir` | `{}` | Times que o repositório recebe logo após a transferência, ex.: `{"dev": "push"}`. Níveis: `pull`, `triage`, `push`, `maintain`, `admin` |
 | `abrir_navegador` | `true` | Abre o navegador sozinho ao iniciar |
 | `idioma` | `en` | Idioma na primeira vez: `en` ou `pt-BR`. Depois, a página lembra a bandeira que você clicou |
 | `pasta_sem_linguagem` | `outros` | Pasta usada para repositórios sem linguagem detectada |
@@ -98,18 +103,21 @@ O `config.json` e a pasta de dados estão no `.gitignore` — suas configuraçõ
 
 ## Como usar
 
-1. Na aba **Ativos**, marque **Arquivar**, **Transferir** ou **Excluir** e escreva observações. Sem marcação = manter.
+1. Na aba **Ativos**, marque **Arquivar**, **Transferir**, **Devolver** ou **Excluir** e escreva observações. Sem marcação = manter.
 2. Clique em **Clonar** para clonar um repositório que ainda não está no seu computador.
-3. Clique em **Aplicar revisão** para arquivar/transferir/excluir no GitHub. Exclusões exigem digitar `EXCLUIR`.
+3. Clique em **Aplicar revisão** para arquivar/transferir/devolver/excluir no GitHub. Exclusões exigem digitar `EXCLUIR`.
 4. Na aba **Arquivados**, clique em **Desarquivar** se mudar de ideia.
-5. Clique em **Relatório** para gerar o relatório em HTML em `<pasta_dados>/relatorios/` (no idioma selecionado).
+5. Nos repositórios da organização, clique em **Liberar p/ dev** para dar Write ao time dev (age na hora).
+6. Clique em **Relatório** para gerar o relatório em HTML em `<pasta_dados>/relatorios/` (no idioma selecionado).
 
 > A interface abre em inglês por padrão. Clique na bandeira **PT-BR** no topo (ou use `"idioma": "pt-BR"` no `config.json`).
 
 | Ação | Efeito | Reversível? |
 |---|---|---|
 | Arquivar | O repositório fica somente leitura no GitHub | Sim — Desarquivar |
-| Transferir | O repositório passa para a organização; o GitHub redireciona o endereço antigo; os clones locais recebem o `origin` novo | Sim — transferindo de volta no GitHub |
+| Transferir | O repositório passa para a organização; o GitHub redireciona o endereço antigo; os clones locais recebem o `origin` novo | Sim — Devolver |
+| Devolver | O repositório volta da organização para a sua conta; os clones locais recebem o `origin` novo | Sim — Transferir de novo |
+| Liberar p/ dev | O time do `time_dev` ganha Write no repositório | Sim — clicando de novo |
 | Excluir | Apaga o repositório, o código e o histórico | **Não** |
 | Desarquivar | O repositório volta a aceitar alterações | Sim — arquivando de novo |
 
@@ -124,7 +132,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 | Arquivo | Conteúdo |
 |---|---|
 | `revisao.json` | Suas marcações e observações |
-| `historico.json` | Registro de todas as ações (clonado, arquivado, desarquivado, transferido, excluído) — nunca é apagado |
+| `historico.json` | Registro de todas as ações (clonado, arquivado, desarquivado, transferido, devolvido, excluído, mudanças no time dev) — nunca é apagado |
 | `relatorios/` | Relatórios gerados |
 
 ## Segurança
@@ -144,6 +152,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 | Botão "Escolher…" mostra erro do tkinter (Linux) | `sudo apt install python3-tk`, ou digite o caminho no campo |
 | Excluir falha com `delete_repo` | `gh auth refresh -h github.com -s delete_repo` |
 | Transferir falha | Você precisa poder criar repositórios na organização, e ela não pode ter um repositório com o mesmo nome |
+| **Liberar p/ dev** dá erro | O time do `time_dev` precisa existir na organização (use o slug, como aparece no endereço do time) |
 | `abrir.sh: Permission denied` | `chmod +x abrir.sh` |
 | `.bat` não encontra o Python ao abrir por atalho | O `abrir.bat` usa o `py.exe` do Windows; reinstale o Python marcando o *py launcher* |
 
@@ -151,7 +160,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 
 | Arquivo | Função |
 |---|---|
-| `servidor.py` | Servidor local e ações (clonar, arquivar, desarquivar, transferir, excluir, relatório) |
+| `servidor.py` | Servidor local e ações (clonar, arquivar, desarquivar, transferir, devolver, time dev, excluir, relatório) |
 | `gerar_lista.py` | Busca os repositórios via `gh` e monta a página. Rodado sozinho, gera uma versão estática, só de leitura, em `saida/` |
 | `relatorio.py` | Histórico de ações e relatório em HTML |
 | `config.py` | Lê o `config.json` |

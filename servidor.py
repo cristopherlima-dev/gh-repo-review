@@ -3,7 +3,7 @@ Servidor local do gh-repo-review.
 
 Serve a página em http://localhost:<porta> e executa as ações pedidas por ela:
 salvar revisão, escolher pasta, clonar, arquivar, desarquivar, transferir para a organização,
-excluir e relatório (via git/gh).
+devolver para a sua conta, liberar/tirar do time dev, excluir e relatório (via git/gh).
 
 Uso:  python servidor.py   (ou abrir.bat / abrir.sh)
 Para parar: feche a janela ou Ctrl+C.
@@ -12,6 +12,7 @@ import json
 import secrets
 import shutil
 import subprocess
+import time
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -27,6 +28,7 @@ TOKEN = secrets.token_hex(16)   # senha da sessão: só a página gerada por est
 cache = {"dados": None}         # lista de repositórios em memória (evita chamar o GitHub a cada clique)
 IDIOMA = idioma_valido(CONFIG["idioma"])   # idioma do terminal e padrão das respostas
 ORG = CONFIG["organizacao_destino"]          # organização que recebe as transferências (vazio = desligado)
+TIME_DEV = CONFIG["time_dev"] if ORG else ""  # time controlado pelo botão "Liberar p/ dev"
 pedido = {"idioma": IDIOMA}     # idioma do pedido atual (vem da página; o servidor atende um pedido por vez)
 
 
@@ -37,10 +39,22 @@ def msg(chave, **valores):
 
 # ---------- ações ----------
 
+def repos_do_time(time_slug):
+    """Nomes (dono/nome, minúsculo) dos repositórios que o time já acessa."""
+    ok, saida = gh("api", f"orgs/{ORG}/teams/{time_slug}/repos?per_page=100", "--paginate", "--jq", ".[].full_name")
+    if not ok:
+        print(t(IDIOMA, "aviso_time", t=time_slug, o=ORG, e=saida))
+        return set()
+    return {linha.strip().lower() for linha in saida.splitlines() if linha.strip()}
+
+
 def atualizar_cache():
     cache["dados"] = montar_dados(buscar_repos(), carregar_revisao(), usuario_logado())
     cache["dados"]["token"] = TOKEN
     cache["dados"]["servidor"] = True
+    no_dev = repos_do_time(TIME_DEV) if TIME_DEV else set()
+    for r in cache["dados"]["repos"]:
+        r["no_dev"] = r["id"].lower() in no_dev
 
 
 def repo_por_id(repo_id):
@@ -52,6 +66,7 @@ def salvar_revisao(revisao):
     for r in cache["dados"]["repos"]:
         marcacao = revisao.get(r["id"], {})
         r["status"], r["obs"] = marcacao.get("status", ""), marcacao.get("obs", "")
+        r["dev_acao"] = marcacao.get("dev", "")
 
 
 def limpar_status(revisao, r):
@@ -59,7 +74,17 @@ def limpar_status(revisao, r):
     r["status"] = ""
     if r["id"] in revisao:
         revisao[r["id"]]["status"] = ""
-        if not revisao[r["id"]].get("obs"):
+        if not revisao[r["id"]].get("obs") and not revisao[r["id"]].get("dev"):
+            revisao.pop(r["id"])
+
+
+def limpar_dev(revisao, r):
+    """Tira a marcação do time dev (mantém status e observação)."""
+    r["dev_acao"] = ""
+    marcacao = revisao.get(r["id"])
+    if marcacao:
+        marcacao.pop("dev", None)
+        if not marcacao.get("status") and not marcacao.get("obs"):
             revisao.pop(r["id"])
 
 
@@ -138,7 +163,7 @@ def atualizar_remote(pasta, id_antigo, id_novo):
     Devolve (deu_certo, mensagem); ignora clones cujo origin aponta para outro repositório.
     """
     git = lambda *a: subprocess.run(["git", "-C", str(pasta), *a], capture_output=True, text=True, encoding="utf-8")
-    atual = git("remote", "get-url", "origin")
+    atual = git("config", "--get", "remote.origin.url")   # endereço gravado, sem reescritas (insteadOf)
     if atual.returncode != 0:
         return False, msg("remote_erro", p=pasta, e=atual.stderr.strip())
     url = atual.stdout.strip()
@@ -152,38 +177,108 @@ def atualizar_remote(pasta, id_antigo, id_novo):
     return True, msg("remote_ok", p=pasta)
 
 
-def transferir(r):
-    """Transfere o repositório para a ORG e atualiza o remote dos clones locais. Devolve (ok, mensagem)."""
-    if not ORG:
-        return False, msg("transferir_desligado")
-    if r["dono"].lower() == ORG.lower():
-        return False, msg("ja_na_org", o=ORG)
-    # O gh não tem comando pronto para transferir; usamos a API REST direto
-    ok, saida = gh("api", "-X", "POST", f"repos/{r['id']}/transfer", "-f", f"new_owner={ORG}")
-    if not ok:
-        return False, saida
+def dar_acesso_time(time_slug, repo_id, permissao, tentativas=5):
+    """
+    Dá ao time a permissão no repositório da ORG (pull, triage, push, maintain, admin).
+    Logo após uma transferência o GitHub ainda pode estar movendo o repositório: tenta algumas vezes.
+    """
+    for i in range(tentativas):
+        ok, saida = gh("api", "-X", "PUT", f"orgs/{ORG}/teams/{time_slug}/repos/{repo_id}",
+                       "-f", f"permission={permissao}")
+        if ok or i == tentativas - 1:
+            return ok, saida
+        time.sleep(2)
 
-    id_novo = f"{ORG}/{r['nome']}"
-    url_nova = f"https://github.com/{id_novo}"
-    linhas = [msg("transferido_ok", u=url_nova)]
-    pastas = []
+
+def mover(r, novo_dono):
+    """
+    Transfere o repositório para novo_dono, atualiza o remote dos clones locais e o próprio
+    item da lista (que continua aparecendo, agora com o dono novo). Devolve (ok, linhas, id_novo).
+    """
+    # O gh não tem comando pronto para transferir; usamos a API REST direto
+    ok, saida = gh("api", "-X", "POST", f"repos/{r['id']}/transfer", "-f", f"new_owner={novo_dono}")
+    if not ok:
+        return False, [saida], ""
+
+    id_antigo, id_novo = r["id"], f"{novo_dono}/{r['nome']}"
+    linhas, pastas = [], []
     for pasta in clones_locais(r["nome"]):
-        certo, texto = atualizar_remote(pasta, r["id"], id_novo)
+        certo, texto = atualizar_remote(pasta, id_antigo, id_novo)
         if certo is not None:
             linhas.append(texto)
             if certo:
                 pastas.append(str(pasta))
-    if len(linhas) == 1:
+    if not linhas:
         linhas.append(msg("remote_nenhum"))
-    registrar("transferido", {**r, "id": id_novo, "url": url_nova}, "; ".join(pastas))
+
+    r.update(id=id_novo, dono=novo_dono, url=f"https://github.com/{id_novo}", status="", no_dev=False)
+    r["_pastas"] = "; ".join(pastas)
+    return True, linhas, id_antigo
+
+
+def transferir(r):
+    """Leva o repositório da sua conta para a ORG e aplica os times_ao_transferir. Devolve (ok, mensagem)."""
+    if not ORG:
+        return False, msg("transferir_desligado")
+    if r["dono"].lower() == ORG.lower():
+        return False, msg("ja_na_org", o=ORG)
+    ok, linhas, _ = mover(r, ORG)
+    if not ok:
+        return False, linhas[0]
+    linhas.insert(0, msg("transferido_ok", u=r["url"]))
+    for time_slug, permissao in CONFIG["times_ao_transferir"].items():
+        certo, saida = dar_acesso_time(time_slug, r["id"], permissao)
+        linhas.append(msg("time_ok", t=time_slug, p=permissao) if certo else msg("time_erro", t=time_slug, e=saida))
+        if certo and time_slug.lower() == TIME_DEV.lower():
+            r["no_dev"] = True
+    registrar("transferido", r, r.pop("_pastas"))
     return True, "\n".join(linhas)
 
 
+def devolver(r):
+    """Traz o repositório da ORG de volta para a sua conta (ex.: transferência indevida)."""
+    if not ORG or r["dono"].lower() != ORG.lower():
+        return False, msg("devolver_so_org", o=ORG or "?")
+    ok, linhas, _ = mover(r, cache["dados"]["usuario"])
+    if not ok:
+        return False, linhas[0]
+    linhas.insert(0, msg("devolvido_ok", u=r["url"]))
+    registrar("devolvido", r, r.pop("_pastas"))
+    return True, "\n".join(linhas)
+
+
+def alternar_dev(repo_id, liberar):
+    """Dá Write ao time dev (liberar=True) ou tira o repositório do time (False)."""
+    if not TIME_DEV:
+        return False, msg("sem_time_dev")
+    r = repo_por_id(repo_id)
+    if liberar:
+        ok, saida = dar_acesso_time(TIME_DEV, repo_id, "push", tentativas=1)
+    else:
+        ok, saida = gh("api", "-X", "DELETE", f"orgs/{ORG}/teams/{TIME_DEV}/repos/{repo_id}")
+    if ok:
+        r["no_dev"] = liberar
+        registrar("dev_liberado" if liberar else "dev_removido", r)
+    return ok, saida
+
+
 def aplicar(revisao):
-    """Arquiva, transfere e exclui no GitHub conforme a revisão. Devolve o resultado de cada um."""
+    """Arquiva, libera/tira do time dev, transfere, devolve e exclui no GitHub. Devolve o resultado de cada um."""
     salvar_revisao(revisao)
     resultados = []
     for r in list(cache["dados"]["repos"]):
+        # Time dev primeiro: só vale para repositórios que estão (e vão continuar) na organização
+        if r.get("dev_acao"):
+            liberar = r["dev_acao"] == "liberar"
+            if TIME_DEV and ORG and r["dono"].lower() == ORG.lower() and r["status"] != "devolver" \
+                    and liberar != r.get("no_dev", False):
+                ok, saida = alternar_dev(r["id"], liberar)
+                resultados.append({"id": r["id"], "acao": "dev_" + r["dev_acao"], "ok": ok, "msg": saida})
+                if ok:
+                    limpar_dev(revisao, r)
+            else:
+                limpar_dev(revisao, r)   # não se aplica mais (já está assim, ou saiu da organização)
+
         if r["status"] == "arquivar" and not r["arquivado"]:
             ok, saida = gh("repo", "archive", r["id"], "--yes")
             if ok:
@@ -191,12 +286,14 @@ def aplicar(revisao):
                 registrar("arquivado", r)
                 limpar_status(revisao, r)   # já está arquivado; a marcação cumpriu o papel
             resultados.append({"id": r["id"], "acao": "arquivar", "ok": ok, "msg": saida})
-        elif r["status"] == "transferir":
-            ok, saida = transferir(r)
+        elif r["status"] in ("transferir", "devolver"):
+            id_antes, acao = r["id"], r["status"]   # guardados antes: mover() troca o id e limpa o status
+            ok, saida = (transferir if acao == "transferir" else devolver)(r)
             if ok:
-                cache["dados"]["repos"].remove(r)   # não é mais seu: sai da lista
-                revisao.pop(r["id"], None)
-            resultados.append({"id": r["id"], "acao": "transferir", "ok": ok, "msg": saida})
+                revisao.pop(id_antes, None)   # o item continua na lista, com o dono novo e sem marcação
+                if r.get("obs"):
+                    revisao[r["id"]] = {"status": "", "obs": r["obs"]}
+            resultados.append({"id": id_antes, "acao": acao, "ok": ok, "msg": saida})
         elif r["status"] == "excluir":
             if not CONFIG["permitir_excluir"]:
                 resultados.append({"id": r["id"], "acao": "excluir", "ok": False, "msg": msg("excluir_desligado")})
@@ -279,7 +376,7 @@ def main():
 
     print(t(IDIOMA, "inicio_pasta", p=PASTA_PROJETOS))
     print(t(IDIOMA, "inicio_excluir", s=t(IDIOMA, "ligado" if CONFIG["permitir_excluir"] else "desligado")))
-    print(t(IDIOMA, "inicio_org", o=ORG or t(IDIOMA, "desligado")))
+    print(t(IDIOMA, "inicio_org", o=ORG or t(IDIOMA, "desligado")) + (f"  ·  dev: {TIME_DEV}" if TIME_DEV else ""))
     print(t(IDIOMA, "buscando"))
     atualizar_cache()
     print(t(IDIOMA, "carregados", n=len(cache["dados"]["repos"]), u=cache["dados"]["usuario"]))

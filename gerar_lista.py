@@ -45,18 +45,35 @@ def usuario_logado():
     return rodar_gh("api", "user", "--jq", ".login").strip()
 
 
-def buscar_repos():
-    """Lista os repositórios do usuário logado (e das organizações, se configurado)."""
-    afiliacao = "owner,organization_member" if CONFIG["incluir_organizacoes"] else "owner"
-    texto = rodar_gh("api", f"user/repos?affiliation={afiliacao}&per_page=100",
-                     "--paginate", "--jq", ".[]").strip()
-    # O gh devolve um objeto JSON por linha; lemos um por um
-    repos, leitor, pos = [], json.JSONDecoder(), 0
+def ler_objetos(texto):
+    """O gh devolve um objeto JSON por linha; lemos um por um."""
+    texto = texto.strip()
+    objetos, leitor, pos = [], json.JSONDecoder(), 0
     while pos < len(texto):
         objeto, pos = leitor.raw_decode(texto, pos)
-        repos.append(objeto)
+        objetos.append(objeto)
         while pos < len(texto) and texto[pos].isspace():
             pos += 1
+    return objetos
+
+
+def buscar_repos():
+    """
+    Lista os repositórios do usuário logado (e das organizações, se configurado).
+    Os da organizacao_destino entram sempre: são os que você transferiu e pode devolver.
+    """
+    afiliacao = "owner,organization_member" if CONFIG["incluir_organizacoes"] else "owner"
+    repos = ler_objetos(rodar_gh("api", f"user/repos?affiliation={afiliacao}&per_page=100",
+                                 "--paginate", "--jq", ".[]"))
+    org = CONFIG["organizacao_destino"]
+    if org:
+        res = subprocess.run(["gh", "api", f"orgs/{org}/repos?per_page=100", "--paginate", "--jq", ".[]"],
+                             capture_output=True, text=True, encoding="utf-8")
+        if res.returncode == 0:
+            ja = {r["full_name"].lower() for r in repos}
+            repos += [r for r in ler_objetos(res.stdout) if r["full_name"].lower() not in ja]
+        else:   # organização errada ou sem acesso: avisa e segue só com os seus
+            print(t(IDIOMA, "aviso_org", o=org, e=res.stderr.strip()))
     return repos
 
 
@@ -100,6 +117,7 @@ def montar_dados(repos, revisao, usuario):
             "local": r["name"].lower() in locais,
             "status": marcacao.get("status", ""),
             "obs": marcacao.get("obs", ""),
+            "dev_acao": marcacao.get("dev", ""),   # "liberar" / "tirar" do time dev (pendente)
         })
     return {
         "usuario": usuario,
@@ -109,6 +127,7 @@ def montar_dados(repos, revisao, usuario):
         "anos_parado": CONFIG["anos_parado"],
         "permitir_excluir": CONFIG["permitir_excluir"],
         "organizacao_destino": CONFIG["organizacao_destino"],
+        "time_dev": CONFIG["time_dev"],
         "idioma": IDIOMA,
         "repos": lista,
     }

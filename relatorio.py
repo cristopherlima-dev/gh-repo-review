@@ -1,5 +1,5 @@
 """
-Histórico das ações (clonar, arquivar, desarquivar, transferir, excluir) e relatório em HTML.
+Histórico das ações (clonar, arquivar, desarquivar, transferir, devolver, excluir, liberar/tirar do time dev) e relatório em HTML.
 
 O histórico fica em historico.json: uma lista de registros, um por ação (nunca é apagado).
 O relatório cruza o histórico com a situação atual (GitHub + disco) e é salvo em
@@ -17,7 +17,7 @@ HISTORICO = CONFIG["pasta_dados"] / "historico.json"
 PASTA_RELATORIOS = CONFIG["pasta_dados"] / "relatorios"
 
 # Ordem e cor das seções do relatório
-SECOES = [("excluido", "#a32d2d"), ("arquivado", "#854f0b"), ("transferido", "#185fa5"), ("clonado", "#3b6d11")]
+SECOES = [("excluido", "#a32d2d"), ("arquivado", "#854f0b"), ("transferido", "#185fa5"), ("devolvido", "#5f5e5a"), ("clonado", "#3b6d11")]
 
 
 def carregar_historico():
@@ -73,15 +73,25 @@ def situacao_atual(repos):
             nota = ("nota_desarquivado_em", desarq["data"]) if desarq else ("nota_desarquivado", "")
             arquivados.append({**reg, "obs": r["obs"], "nota": nota})
 
-    # Transferidos: o registro já guarda o endereço novo (na organização)
-    transferidos = [{**h, "nota": None} for h in ultimo_por_id(historico, "transferido").values()]
+    # Transferidos e devolvidos: o registro já guarda o endereço novo.
+    # Ligamos os dois pelo nome do repositório (o dono muda a cada ida e volta).
+    nome = lambda h: h["id"].split("/")[-1].lower()
+    devolvidos_lista = list(ultimo_por_id(historico, "devolvido").values())
+    ultima_volta = {nome(h): h for h in sorted(devolvidos_lista, key=lambda h: h["data"])}
+    transferidos = []
+    for h in ultimo_por_id(historico, "transferido").values():
+        volta = ultima_volta.get(nome(h))
+        nota = ("nota_devolvido_em", volta["data"]) if volta and volta["data"] > h["data"] else None
+        transferidos.append({**h, "nota": nota})
+    devolvidos = [{**h, "nota": None} for h in devolvidos_lista]
 
     clonados = [{**h, "nota": None if Path(h["pasta"]).exists() else ("nota_pasta_removida", "")}
                 for h in ultimo_por_id(historico, "clonado").values()]
 
     ordenar = lambda lista: sorted(lista, key=lambda h: h["data"], reverse=True)
     return {"excluido": ordenar(excluidos), "arquivado": ordenar(arquivados),
-            "transferido": ordenar(transferidos), "clonado": ordenar(clonados)}
+            "transferido": ordenar(transferidos), "devolvido": ordenar(devolvidos),
+            "clonado": ordenar(clonados)}
 
 
 def gerar_relatorio(usuario, repos, idioma="en"):

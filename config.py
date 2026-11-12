@@ -22,6 +22,8 @@ PADRAO = {
     "permitir_excluir": False,
     "incluir_organizacoes": False,
     "organizacao_destino": "",
+    "time_dev": "",
+    "times_ao_transferir": {},
     "abrir_navegador": True,
     "idioma": "en",
     "pasta_sem_linguagem": "outros",
@@ -43,6 +45,8 @@ def carregar():
     cfg = {**PADRAO, **{k: v for k, v in dados.items() if not k.startswith("_")}}
     cfg["pasta_projetos"] = caminho(cfg["pasta_projetos"])
     cfg["organizacao_destino"] = (cfg["organizacao_destino"] or "").strip()
+    cfg["time_dev"] = (cfg["time_dev"] or "").strip()
+    cfg["times_ao_transferir"] = cfg["times_ao_transferir"] or {}
     # Pasta dos dados de revisão/histórico/relatórios; caminho relativo = dentro da pasta do projeto
     cfg["pasta_dados"] = BASE / caminho(cfg["pasta_dados"] or "dados")
     cfg["pasta_dados"].mkdir(parents=True, exist_ok=True)

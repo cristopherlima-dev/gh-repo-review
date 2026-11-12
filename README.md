@@ -19,7 +19,10 @@ Built with Python's standard library and the official [GitHub CLI](https://cli.g
 - **Apply review** to archive/delete on GitHub, with confirmation
 - **Unarchive** from the Archived tab
 - **Transfer** repositories to an organization (e.g. your company's) — local clones get their `git remote` updated automatically
-- **HTML report** of what was deleted, archived, transferred and cloned, reflecting the current state (e.g. "folder removed", "unarchived on ...")
+- **Bring back** a repository from the organization to your account (e.g. a transfer by mistake)
+- **Allow dev**: one click gives Write to a team (e.g. `dev`) on an organization repository — click again to remove it
+- Repositories of the organization you transfer to are always listed; filter by owner
+- **HTML report** of what was deleted, archived, transferred, brought back and cloned, reflecting the current state (e.g. "folder removed", "unarchived on ...")
 - Interface and reports in **English** or **Portuguese (Brazil)**, switchable with one click
 - Works on **Windows, macOS and Linux**
 
@@ -90,7 +93,9 @@ On the first run a `config.json` is created from `config.example.json`. **Open i
 | `anos_parado` | `2` | Repositories without a push for longer than this are highlighted |
 | `permitir_excluir` | `false` | **Delete is off by default.** When `false`, the Delete button is hidden and the server refuses deletions |
 | `incluir_organizacoes` | `false` | Also list repositories from organizations you belong to |
-| `organizacao_destino` | `""` | Organization that receives repositories marked **Transfer**. Empty = Transfer button hidden |
+| `organizacao_destino` | `""` | Organization that receives repositories marked **Transfer**. Its repositories are always listed, with **Bring back**. Empty = both buttons hidden |
+| `time_dev` | `""` | Team (slug) controlled by the **Allow dev** button (Write). Empty = button hidden |
+| `times_ao_transferir` | `{}` | Teams a repository joins right after a transfer, e.g. `{"dev": "push"}`. Levels: `pull`, `triage`, `push`, `maintain`, `admin` |
 | `abrir_navegador` | `true` | Open the browser automatically on start |
 | `idioma` | `en` | Language on first open: `en` or `pt-BR`. After that, the page remembers the flag you clicked |
 | `pasta_sem_linguagem` | `outros` | Folder used for repositories with no detected language |
@@ -100,16 +105,19 @@ On the first run a `config.json` is created from `config.example.json`. **Open i
 
 ## How to use
 
-1. In the **Active** tab, mark repositories as **Archive**, **Transfer** or **Delete** and add notes. No mark = keep.
+1. In the **Active** tab, mark repositories as **Archive**, **Transfer**, **Bring back** or **Delete** and add notes. No mark = keep.
 2. Click **Clone** to clone a repository that isn't on your machine yet.
-3. Click **Apply review** to archive/transfer/delete on GitHub. Deletions require typing `DELETE`.
+3. Click **Apply review** to archive/transfer/bring back/delete on GitHub. Deletions require typing `DELETE`.
 4. In the **Archived** tab, click **Unarchive** to undo an archive.
-5. Click **Report** to generate the HTML report in `<pasta_dados>/relatorios/` (in the language currently selected).
+5. On organization repositories, click **Allow dev** to give the dev team Write (acts immediately).
+6. Click **Report** to generate the HTML report in `<pasta_dados>/relatorios/` (in the language currently selected).
 
 | Action | Effect | Reversible? |
 |---|---|---|
 | Archive | Repository becomes read-only on GitHub | Yes — Unarchive |
-| Transfer | Repository moves to the organization; GitHub redirects the old URL; local clones get the new `origin` | Yes — transfer back on GitHub |
+| Transfer | Repository moves to the organization; GitHub redirects the old URL; local clones get the new `origin` | Yes — Bring back |
+| Bring back | Repository returns from the organization to your account; local clones get the new `origin` | Yes — Transfer again |
+| Allow dev | The `time_dev` team gets Write on the repository | Yes — click again |
 | Delete | Repository, code and history are removed | **No** |
 | Unarchive | Repository accepts changes again | Yes — archive again |
 
@@ -124,7 +132,7 @@ Everything stays on your machine, inside `pasta_dados`:
 | File | Content |
 |---|---|
 | `revisao.json` | Your marks and notes |
-| `historico.json` | Log of every action (cloned, archived, unarchived, transferred, deleted) — never erased |
+| `historico.json` | Log of every action (cloned, archived, unarchived, transferred, brought back, deleted, dev team changes) — never erased |
 | `relatorios/` | Generated reports |
 
 ## Security
@@ -144,13 +152,14 @@ Everything stays on your machine, inside `pasta_dados`:
 | "Choose folder" button shows a tkinter error (Linux) | `sudo apt install python3-tk`, or type the path in the field |
 | Delete fails with `delete_repo` | `gh auth refresh -h github.com -s delete_repo` |
 | Transfer fails | You must be able to create repositories in the organization, and it can't already have a repository with the same name |
+| **Allow dev** shows an error | The team in `time_dev` must exist in the organization (use its slug, as in the team URL) |
 | `abrir.sh: Permission denied` | `chmod +x abrir.sh` |
 
 ## Project structure
 
 | File | Role |
 |---|---|
-| `servidor.py` | Local server and actions (clone, archive, unarchive, transfer, delete, report) |
+| `servidor.py` | Local server and actions (clone, archive, unarchive, transfer, bring back, dev team, delete, report) |
 | `gerar_lista.py` | Fetches repositories via `gh` and builds the page. Run alone, it generates a static, read-only version in `saida/` |
 | `relatorio.py` | Action history and HTML report |
 | `config.py` | Loads `config.json` |

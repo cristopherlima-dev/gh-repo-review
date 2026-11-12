@@ -28,7 +28,8 @@
          border: 1px solid var(--borda); border-radius: 6px; padding: 6px 10px; }
   button { cursor: pointer; }
   button:hover { border-color: var(--texto2); }
-  button:disabled { opacity: .5; cursor: wait; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ocupado { cursor: wait; }
   button.principal { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
   button.perigo { color: var(--vermelho); border-color: var(--vermelho); }
   /* Seletor de idioma com bandeiras */
@@ -57,6 +58,12 @@
   .status button, .btnClonar { padding: 2px 8px; font-size: 12px; }
   .status button.on[data-s=arquivar] { background: var(--ambar-bg);    color: var(--ambar);    border-color: var(--ambar); }
   .status button.on[data-s=transferir] { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
+  .status button.on[data-s=devolver] { background: var(--cinza-bg); color: var(--texto); border-color: var(--texto2); }
+  .btnDev { padding: 2px 8px; font-size: 12px; margin-left: 6px; }
+  .status button { white-space: nowrap; }
+  .btnDev.on { background: var(--verde-bg); color: var(--verde); border-color: var(--verde); }
+  .btnDev.marcado { border: 1px dashed var(--verde); color: var(--verde); }
+  .btnDev.tirar { border: 1px dashed var(--vermelho); color: var(--vermelho); }
   .status button.on[data-s=excluir]  { background: var(--vermelho-bg); color: var(--vermelho); border-color: var(--vermelho); }
   .abas { display: flex; gap: 4px; margin-bottom: 10px; }
   .abas button.on { background: var(--azul-bg); color: var(--azul); border-color: var(--azul); }
@@ -128,12 +135,14 @@
 
 <div class="filtros">
   <input type="text" id="fBusca" data-t-ph="busca">
+  <select id="fDono"><option value="" data-t="todos_donos"></option></select>
   <select id="fLinguagem"><option value="" data-t="todas_linguagens"></option></select>
   <select id="fStatus">
     <option value="" data-t="todos_status"></option>
     <option value="pendente" data-t="sem_marcacao"></option>
     <option value="arquivar" data-t="arquivar"></option>
     <option value="transferir" class="so-org" data-t="transferir"></option>
+    <option value="devolver" class="so-org" data-t="devolver"></option>
     <option value="excluir" class="so-excluir" data-t="excluir"></option>
   </select>
   <label><input type="checkbox" id="fParado"> <span data-t="so_parados"></span></label>
@@ -222,8 +231,16 @@ const TEXTOS = {
     palavra: "DELETE", digite_para_confirmar: "Type {p} to confirm the deletions", digite_primeiro: "Type {p} to confirm.",
     aplicando: "Applying on GitHub…", feche_recarregar: "Close to reload the list.",
     acao_arquivar: "archive", acao_excluir: "delete", acao_transferir: "transfer",
-    transferir: "Transfer", transferir_dica: "Transfer to the organization {org}", c_transferir: "Marked to transfer to {org}",
+    transferir: "Transfer", transferir_dica: "Transfer to the organization {org}", c_transferir: "Marked to transfer / bring back",
     resumo_transferir: "Transfer to {org} ({n}) — leaves your account; local clones get the new remote",
+    devolver: "Bring back", devolver_dica: "Bring back from {org} to your account ({u})", acao_devolver: "bring back",
+    resumo_devolver: "Bring back to {u} ({n}) — leaves {org}; local clones get the new remote",
+    todos_donos: "All owners", nada_marcado: "Nothing marked. Mark repositories in the Status column first.",
+    dev_liberar: "Allow dev", dev_on: "dev: Write ✔", dev_marcado: "Allow dev (pending)", dev_tirar: "Remove dev (pending)",
+    dev_dica_liberar: "Mark to give Write to team {t} on Apply review",
+    dev_dica_tirar: "Mark to remove team {t} on Apply review (back to the base permission)", dev_dica_desmarcar: "Click again to unmark",
+    resumo_dev_liberar: "Give Write to team {t} ({n})", resumo_dev_tirar: "Remove team {t} ({n})",
+    acao_dev_liberar: "allow dev", acao_dev_tirar: "remove dev",
     relatorio_salvo: "Report saved to ", erro_relatorio: "Report error: ", erro_atualizar: "Error refreshing: "
   },
   "pt-BR": {
@@ -253,8 +270,16 @@ const TEXTOS = {
     palavra: "EXCLUIR", digite_para_confirmar: "Digite {p} para confirmar as exclusões", digite_primeiro: "Digite {p} para confirmar.",
     aplicando: "Aplicando no GitHub…", feche_recarregar: "Feche para recarregar a lista.",
     acao_arquivar: "arquivar", acao_excluir: "excluir", acao_transferir: "transferir",
-    transferir: "Transferir", transferir_dica: "Transferir para a organização {org}", c_transferir: "Marcados p/ transferir ({org})",
+    transferir: "Transferir", transferir_dica: "Transferir para a organização {org}", c_transferir: "Marcados p/ transferir / devolver",
     resumo_transferir: "Transferir para {org} ({n}) — sai da sua conta; os clones locais recebem o remote novo",
+    devolver: "Devolver", devolver_dica: "Trazer de {org} de volta para a sua conta ({u})", acao_devolver: "devolver",
+    resumo_devolver: "Devolver para {u} ({n}) — sai de {org}; os clones locais recebem o remote novo",
+    todos_donos: "Todos os donos", nada_marcado: "Nada marcado. Marque antes os repositórios na coluna Status.",
+    dev_liberar: "Liberar p/ dev", dev_on: "dev: Write ✔", dev_marcado: "Liberar p/ dev (pendente)", dev_tirar: "Tirar do dev (pendente)",
+    dev_dica_liberar: "Marcar para dar Write ao time {t} no Aplicar revisão",
+    dev_dica_tirar: "Marcar para tirar o time {t} no Aplicar revisão (volta à permissão base)", dev_dica_desmarcar: "Clique de novo para desmarcar",
+    resumo_dev_liberar: "Dar Write ao time {t} ({n})", resumo_dev_tirar: "Tirar o time {t} ({n})",
+    acao_dev_liberar: "liberar p/ dev", acao_dev_tirar: "tirar do dev",
     relatorio_salvo: "Relatório salvo em ", erro_relatorio: "Erro no relatório: ", erro_atualizar: "Erro ao atualizar: "
   }
 };
@@ -263,7 +288,7 @@ const TEXTOS = {
 // O exemplo abaixo serve só para abrir o template direto no navegador e ver o layout.
 const DADOS = /*__DADOS_INICIO__*/{
   "usuario": "example", "gerado_em": "2026-10-14T10:00:00", "pasta_projetos": "~/projetos", "sep": "/",
-  "anos_parado": 2, "permitir_excluir": false, "organizacao_destino": "my-org", "idioma": "en",
+  "anos_parado": 2, "permitir_excluir": false, "organizacao_destino": "my-org", "time_dev": "dev", "idioma": "en",
   "repos": [
     {"id": "example/new-project", "nome": "new-project", "dono": "example", "linguagem": "C#", "pasta": "csharp",
      "criado_em": "2026-08-12", "atualizado_em": "2026-10-06", "privado": true, "arquivado": false,
@@ -283,7 +308,10 @@ const CHAVE = "revisao_rascunho_" + DADOS.gerado_em;
 const ANOS = DADOS.anos_parado ?? 2;
 const LIMITE_PARADO = ANOS * 365 * 24 * 60 * 60 * 1000;
 const EXCLUIR = !!DADOS.permitir_excluir;
-const ORG = DADOS.organizacao_destino || "";   // vazio = sem botão Transferir
+const ORG = DADOS.organizacao_destino || "";   // vazio = sem botões Transferir/Devolver
+const TIME_DEV = ORG ? (DADOS.time_dev || "") : "";   // time do botão "Liberar p/ dev"
+const daOrg = r => !!ORG && r.dono.toLowerCase() === ORG.toLowerCase();
+const meu = r => r.dono.toLowerCase() === String(DADOS.usuario).toLowerCase();
 const SEP = DADOS.sep || "/";
 let ordem = { col: "atualizado_em", asc: true };
 const $ = id => document.getElementById(id);
@@ -367,7 +395,9 @@ async function api(rota, corpo) {
 
 function revisao() {
   const saida = {};
-  repos.forEach(r => { if (r.status || r.obs) saida[r.id] = { status: r.status, obs: r.obs }; });
+  repos.forEach(r => {
+    if (r.status || r.obs || r.dev_acao) saida[r.id] = { status: r.status, obs: r.obs, ...(r.dev_acao ? { dev: r.dev_acao } : {}) };
+  });
   return saida;
 }
 
@@ -392,7 +422,7 @@ function contar() {
   $("cAtivos").textContent = $("nAtivos").textContent = ativos.length;
   $("cArquivados").textContent = $("nArquivados").textContent = arquivados.length;
   $("cArquivar").textContent = ativos.filter(r => r.status === "arquivar").length;
-  $("cTransferir").textContent = repos.filter(r => r.status === "transferir").length;
+  $("cTransferir").textContent = repos.filter(r => r.status === "transferir" || r.status === "devolver").length;
   $("cExcluir").textContent = repos.filter(r => r.status === "excluir").length;
   $("cPendente").textContent = ativos.filter(r => !r.status).length;
   $("cParado").textContent = repos.filter(r => r.parado).length;
@@ -401,11 +431,13 @@ function contar() {
 function filtrados() {
   const busca = $("fBusca").value.toLowerCase();
   const ling = $("fLinguagem").value;
+  const dono = $("fDono").value;
   const st = $("fStatus").value;
   return repos.filter(r =>
     (visao === "arquivados" ? r.arquivado : !r.arquivado) &&
     (r.id + " " + r.descricao).toLowerCase().includes(busca) &&
     (!ling || (r.linguagem || "—") === ling) &&
+    (!dono || r.dono === dono) &&
     (!st || (st === "pendente" ? !r.status : r.status === st)) &&
     (!$("fParado").checked || r.parado) &&
     (!$("fSemLocal").checked || !r.local)
@@ -423,9 +455,24 @@ function celulaLocal(r) {
 // Quais botões de status cada linha mostra
 function botoesStatus(r) {
   const lista = r.arquivado ? [] : ["arquivar"];
-  if (ORG && r.dono.toLowerCase() !== ORG.toLowerCase()) lista.push("transferir");   // já na organização: sem botão
+  if (ORG && meu(r)) lista.push("transferir");    // seu -> organização
+  if (daOrg(r)) lista.push("devolver");           // organização -> sua conta
   if (EXCLUIR) lista.push("excluir");
   return lista;
+}
+
+const dicas = r => ({ transferir: t("transferir_dica", { org: ORG }), devolver: t("devolver_dica", { org: ORG, u: DADOS.usuario }) });
+
+// Botão do time dev (só no servidor, em repositórios ativos da organização). Só marca; o GitHub muda no "Aplicar revisão".
+// Estados: sem acesso -> "Liberar p/ dev"; marcado -> "(pendente)"; com acesso -> "dev: Write ✔"; marcado p/ tirar -> "Tirar do dev"
+function botaoDev(r) {
+  if (!SERVIDOR || !TIME_DEV || !daOrg(r) || r.arquivado) return "";
+  let classe, texto, dica;
+  if (r.dev_acao === "liberar")     [classe, texto, dica] = ["marcado", t("dev_marcado"), t("dev_dica_desmarcar")];
+  else if (r.dev_acao === "tirar")  [classe, texto, dica] = ["tirar", t("dev_tirar"), t("dev_dica_desmarcar")];
+  else if (r.no_dev)                [classe, texto, dica] = ["on", t("dev_on"), t("dev_dica_tirar", { t: TIME_DEV })];
+  else                              [classe, texto, dica] = ["", t("dev_liberar"), t("dev_dica_liberar", { t: TIME_DEV })];
+  return `<button class="btnDev ${classe}" title="${esc(dica)}">${texto}</button>`;
 }
 
 function desenhar() {
@@ -443,7 +490,8 @@ function desenhar() {
       <td><div class="status">
         ${r.arquivado && SERVIDOR ? `<button class="btnDesarquivar">${t("desarquivar")}</button>` : ""}
         ${botoesStatus(r).map(s =>
-          `<button data-s="${s}" class="${r.status === s ? "on" : ""}"${s === "transferir" ? ` title="${esc(t("transferir_dica", { org: ORG }))}"` : ""}>${t(s)}</button>`).join("")}
+          `<button data-s="${s}" class="${r.status === s ? "on" : ""}"${dicas(r)[s] ? ` title="${esc(dicas(r)[s])}"` : ""}>${t(s)}</button>`).join("")}
+        ${botaoDev(r)}
       </div></td>
       <td><input type="text" value="${esc(r.obs)}" placeholder="${esc(t("obs_ph"))}"></td>
     </tr>`).join("");
@@ -463,11 +511,18 @@ $("corpo").addEventListener("click", e => {
   if (e.target.closest(".btnClonar")) abrirClonar(repoDaLinha(e.target));
   const bd = e.target.closest(".btnDesarquivar");
   if (bd) desarquivar(bd, repoDaLinha(bd));
+  const bv = e.target.closest(".btnDev");
+  if (bv) {   // só marca (clicar de novo desmarca); o GitHub muda no "Aplicar revisão"
+    const r = repoDaLinha(bv);
+    r.dev_acao = r.dev_acao ? "" : (r.no_dev ? "tirar" : "liberar");
+    guardarRascunho(); desenhar();
+  }
 });
 
 // Desarquivar: age na hora (é reversível); o repositório volta para a aba Ativos
 async function desarquivar(botao, r) {
   botao.disabled = true;
+  botao.classList.add("ocupado");
   botao.textContent = t("desarquivando");
   try {
     const res = await api("/api/desarquivar", { id: r.id });
@@ -502,7 +557,7 @@ document.querySelectorAll("th[data-col]").forEach(th => th.addEventListener("cli
   desenhar();
 }));
 
-["fBusca", "fLinguagem", "fStatus", "fParado", "fSemLocal"].forEach(id => $(id).addEventListener("input", desenhar));
+["fBusca", "fDono", "fLinguagem", "fStatus", "fParado", "fSemLocal"].forEach(id => $(id).addEventListener("input", desenhar));
 
 // Fechar janelas
 document.querySelectorAll("[data-fechar]").forEach(b =>
@@ -546,20 +601,28 @@ $("jClonarOk").addEventListener("click", async () => {
 // ---------- Aplicar revisão ----------
 const paraArquivar = () => repos.filter(r => r.status === "arquivar" && !r.arquivado);
 const paraTransferir = () => ORG ? repos.filter(r => r.status === "transferir") : [];
+const paraDevolver = () => ORG ? repos.filter(r => r.status === "devolver") : [];
+const paraDev = acao => TIME_DEV ? repos.filter(r => r.dev_acao === acao && daOrg(r) && r.status !== "devolver") : [];
 const paraExcluir = () => EXCLUIR ? repos.filter(r => r.status === "excluir") : [];
 
 $("btnAplicar").addEventListener("click", () => {
-  const arq = paraArquivar(), trf = paraTransferir(), exc = paraExcluir();
+  const arq = paraArquivar(), trf = paraTransferir(), dev = paraDevolver(), exc = paraExcluir();
+  const lib = paraDev("liberar"), tir = paraDev("tirar");
   const nomes = l => l.map(r => esc(r.id)).join(", ") || t("nenhum");
   $("jAplicarResumo").innerHTML =
     `<div class="aviso">${t("resumo_arquivar", { n: arq.length })}</div><div class="lista">${nomes(arq)}</div>`
     + (ORG ? `<div class="azul">${esc(t("resumo_transferir", { org: ORG, n: trf.length }))}</div><div class="lista">${nomes(trf)}</div>` : "")
+    + (dev.length ? `<div class="sub">${esc(t("resumo_devolver", { org: ORG, u: DADOS.usuario, n: dev.length }))}</div><div class="lista">${nomes(dev)}</div>` : "")
+    + (lib.length ? `<div class="ok" style="font-size:12px">${esc(t("resumo_dev_liberar", { t: TIME_DEV, n: lib.length }))}</div><div class="lista">${nomes(lib)}</div>` : "")
+    + (tir.length ? `<div class="erro" style="font-size:12px">${esc(t("resumo_dev_tirar", { t: TIME_DEV, n: tir.length }))}</div><div class="lista">${nomes(tir)}</div>` : "")
     + (EXCLUIR ? `<div class="erro">${t("resumo_excluir", { n: exc.length })}</div><div class="lista">${nomes(exc)}</div>` : "");
   $("jAplicarInstrucao").textContent = t("digite_para_confirmar", { p: t("palavra") });
   $("jAplicarConfirma").style.display = exc.length ? "" : "none";
   $("jAplicarTexto").value = "";
-  $("jAplicarMsg").textContent = "";
-  $("jAplicarOk").disabled = !(arq.length || trf.length || exc.length);
+  const nada = !(arq.length || trf.length || dev.length || exc.length || lib.length || tir.length);
+  $("jAplicarMsg").innerHTML = nada ? `<div class="sub" style="margin-top:8px">${esc(t("nada_marcado"))}</div>` : "";
+  $("jAplicarOk").disabled = nada;
+  $("jAplicarOk").classList.remove("ocupado");
   $("jAplicar").classList.add("aberto");
 });
 
@@ -569,17 +632,19 @@ $("jAplicarOk").addEventListener("click", async () => {
     return;
   }
   $("jAplicarOk").disabled = true;
+  $("jAplicarOk").classList.add("ocupado");
   $("jAplicarMsg").textContent = t("aplicando");
   try {
     const { resultados } = await api("/api/aplicar", { revisao: revisao(), confirmacao: $("jAplicarTexto").value });
     $("jAplicarMsg").innerHTML = resultados.map(x =>
       `<div class="${x.ok ? "ok" : "erro"}">${x.ok ? "✔" : "✖"} ${t("acao_" + x.acao)}: ${esc(x.id)}${x.ok ? "" : " — " + esc(x.msg)}</div>`
-      + (x.ok && x.acao === "transferir" ? `<div class="det">${esc(x.msg)}</div>` : "")).join("")
+      + (x.ok && (x.acao === "transferir" || x.acao === "devolver") ? `<div class="det">${esc(x.msg)}</div>` : "")).join("")
       + `<div class="sub" style="margin-top:8px">${t("feche_recarregar")}</div>`;
     $("jAplicar").querySelector("[data-fechar]").onclick = () => location.reload();
   } catch (e) {
     $("jAplicarMsg").innerHTML = `<span class="erro">${esc(e.message)}</span>`;
     $("jAplicarOk").disabled = false;
+    $("jAplicarOk").classList.remove("ocupado");
   }
 });
 
@@ -594,6 +659,7 @@ $("btnRelatorio").addEventListener("click", async () => {
 // ---------- Atualizar do GitHub ----------
 $("btnAtualizar").addEventListener("click", async () => {
   $("btnAtualizar").disabled = true;
+  $("btnAtualizar").classList.add("ocupado");
   $("btnAtualizar").textContent = t("atualizando");
   try { await api("/api/atualizar"); location.reload(); }
   catch (e) {
@@ -621,6 +687,8 @@ $("btnExportar").addEventListener("click", async () => {
 });
 
 // Preenche o filtro de linguagens, aplica o idioma e desenha a tabela
+[...new Set(repos.map(r => r.dono))].sort().forEach(d =>
+  $("fDono").insertAdjacentHTML("beforeend", `<option>${esc(d)}</option>`));
 [...new Set(repos.map(r => r.linguagem || "—"))].sort().forEach(l =>
   $("fLinguagem").insertAdjacentHTML("beforeend", `<option>${esc(l)}</option>`));
 aplicarIdioma();
