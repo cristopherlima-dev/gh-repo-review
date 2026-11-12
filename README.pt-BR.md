@@ -2,7 +2,7 @@
 
 [English](README.md) · **Português**
 
-Uma pequena página local para **revisar todos os seus repositórios do GitHub num só lugar**: veja linguagem, datas e se cada um está clonado no seu computador, e **clone, arquive, desarquive ou exclua** com um clique.
+Uma pequena página local para **revisar todos os seus repositórios do GitHub num só lugar**: veja linguagem, datas e se cada um está clonado no seu computador, e **clone, arquive, desarquive, transfira para uma organização ou exclua** com um clique.
 
 Feito só com a biblioteca padrão do Python e o [GitHub CLI](https://cli.github.com/) oficial. Sem `pip install`, sem banco de dados, sem conta além do seu próprio login no GitHub.
 
@@ -16,7 +16,8 @@ Feito só com a biblioteca padrão do Python e o [GitHub CLI](https://cli.github
 - **Clone** com um clique em `<pasta de projetos>/<linguagem>/<repositório>`, com seletor de pasta; o clone é conferido no final
 - **Aplicar revisão** para arquivar/excluir no GitHub, com confirmação
 - **Desarquivar** pela aba Arquivados
-- **Relatório em HTML** do que foi excluído, arquivado e clonado, refletindo a situação atual (ex.: "pasta removida", "desarquivado em ...")
+- **Transferir** repositórios para uma organização (ex.: a da sua empresa) — os clones locais têm o `git remote` atualizado sozinhos
+- **Relatório em HTML** do que foi excluído, arquivado, transferido e clonado, refletindo a situação atual (ex.: "pasta removida", "desarquivado em ...")
 - Interface e relatórios em **inglês** ou **português (Brasil)**, trocando com um clique nas bandeiras
 - Funciona em **Windows, macOS e Linux**
 
@@ -87,6 +88,7 @@ Na primeira execução é criado um `config.json` a partir do `config.example.js
 | `anos_parado` | `2` | Repositórios sem push há mais tempo que isso ficam destacados |
 | `permitir_excluir` | `false` | **Excluir vem desligado.** Com `false`, o botão some e o servidor recusa exclusões |
 | `incluir_organizacoes` | `false` | Lista também os repositórios das organizações de que você participa |
+| `organizacao_destino` | `""` | Organização que recebe os repositórios marcados como **Transferir**. Vazio = botão Transferir escondido |
 | `abrir_navegador` | `true` | Abre o navegador sozinho ao iniciar |
 | `idioma` | `en` | Idioma na primeira vez: `en` ou `pt-BR`. Depois, a página lembra a bandeira que você clicou |
 | `pasta_sem_linguagem` | `outros` | Pasta usada para repositórios sem linguagem detectada |
@@ -96,21 +98,24 @@ O `config.json` e a pasta de dados estão no `.gitignore` — suas configuraçõ
 
 ## Como usar
 
-1. Na aba **Ativos**, marque **Arquivar** ou **Excluir** e escreva observações. Sem marcação = manter.
+1. Na aba **Ativos**, marque **Arquivar**, **Transferir** ou **Excluir** e escreva observações. Sem marcação = manter.
 2. Clique em **Clonar** para clonar um repositório que ainda não está no seu computador.
-3. Clique em **Aplicar revisão** para arquivar/excluir no GitHub. Exclusões exigem digitar `EXCLUIR`.
-
-> A interface abre em inglês por padrão. Clique na bandeira **PT-BR** no topo (ou use `"idioma": "pt-BR"` no `config.json`).
+3. Clique em **Aplicar revisão** para arquivar/transferir/excluir no GitHub. Exclusões exigem digitar `EXCLUIR`.
 4. Na aba **Arquivados**, clique em **Desarquivar** se mudar de ideia.
 5. Clique em **Relatório** para gerar o relatório em HTML em `<pasta_dados>/relatorios/` (no idioma selecionado).
+
+> A interface abre em inglês por padrão. Clique na bandeira **PT-BR** no topo (ou use `"idioma": "pt-BR"` no `config.json`).
 
 | Ação | Efeito | Reversível? |
 |---|---|---|
 | Arquivar | O repositório fica somente leitura no GitHub | Sim — Desarquivar |
+| Transferir | O repositório passa para a organização; o GitHub redireciona o endereço antigo; os clones locais recebem o `origin` novo | Sim — transferindo de volta no GitHub |
 | Excluir | Apaga o repositório, o código e o histórico | **Não** |
 | Desarquivar | O repositório volta a aceitar alterações | Sim — arquivando de novo |
 
 Na dúvida, **arquive**.
+
+Para transferir sem esta ferramenta (pelo site ou terminal) e ajustar o remote na mão, veja [docs/transferir-manual.md](docs/transferir-manual.md).
 
 ## Seus dados
 
@@ -119,7 +124,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 | Arquivo | Conteúdo |
 |---|---|
 | `revisao.json` | Suas marcações e observações |
-| `historico.json` | Registro de todas as ações (clonado, arquivado, desarquivado, excluído) — nunca é apagado |
+| `historico.json` | Registro de todas as ações (clonado, arquivado, desarquivado, transferido, excluído) — nunca é apagado |
 | `relatorios/` | Relatórios gerados |
 
 ## Segurança
@@ -138,6 +143,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 | Porta já em uso | Feche a outra janela do servidor ou mude a `porta` |
 | Botão "Escolher…" mostra erro do tkinter (Linux) | `sudo apt install python3-tk`, ou digite o caminho no campo |
 | Excluir falha com `delete_repo` | `gh auth refresh -h github.com -s delete_repo` |
+| Transferir falha | Você precisa poder criar repositórios na organização, e ela não pode ter um repositório com o mesmo nome |
 | `abrir.sh: Permission denied` | `chmod +x abrir.sh` |
 | `.bat` não encontra o Python ao abrir por atalho | O `abrir.bat` usa o `py.exe` do Windows; reinstale o Python marcando o *py launcher* |
 
@@ -145,7 +151,7 @@ Tudo fica no seu computador, dentro da `pasta_dados`:
 
 | Arquivo | Função |
 |---|---|
-| `servidor.py` | Servidor local e ações (clonar, arquivar, desarquivar, excluir, relatório) |
+| `servidor.py` | Servidor local e ações (clonar, arquivar, desarquivar, transferir, excluir, relatório) |
 | `gerar_lista.py` | Busca os repositórios via `gh` e monta a página. Rodado sozinho, gera uma versão estática, só de leitura, em `saida/` |
 | `relatorio.py` | Histórico de ações e relatório em HTML |
 | `config.py` | Lê o `config.json` |
