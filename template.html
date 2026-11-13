@@ -44,6 +44,8 @@
   .filtros { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .filtros input[type=text] { flex: 1; min-width: 200px; }
   .filtros label { display: flex; align-items: center; gap: 6px; color: var(--texto2); }
+  .contagem { display: flex; align-items: center; margin-left: auto; color: var(--texto2); font-size: 13px; white-space: nowrap; }
+  .contagem b { color: var(--texto); margin-right: 4px; }
   table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; }
   th { text-align: left; font-weight: 600; font-size: 12px; color: var(--texto2); padding: 8px; border-bottom: 1px solid var(--borda); cursor: pointer; user-select: none; white-space: nowrap; }
   td { padding: 6px 8px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
@@ -147,6 +149,7 @@
   </select>
   <label><input type="checkbox" id="fParado"> <span data-t="so_parados"></span></label>
   <label><input type="checkbox" id="fSemLocal"> <span data-t="so_nao_clonados"></span></label>
+  <span class="contagem" id="contagem"></span>
 </div>
 
 <table>
@@ -235,7 +238,7 @@ const TEXTOS = {
     resumo_transferir: "Transfer to {org} ({n}) — leaves your account; local clones get the new remote",
     devolver: "Bring back", devolver_dica: "Bring back from {org} to your account ({u})", acao_devolver: "bring back",
     resumo_devolver: "Bring back to {u} ({n}) — leaves {org}; local clones get the new remote",
-    todos_donos: "All owners", nada_marcado: "Nothing marked. Mark repositories in the Status column first.",
+    todos_donos: "All owners", mostrando: "<b>{n}</b> of {total}", nada_marcado: "Nothing marked. Mark repositories in the Status column first.",
     dev_liberar: "Allow dev", dev_on: "dev: Write ✔", dev_marcado: "Allow dev (pending)", dev_tirar: "Remove dev (pending)",
     dev_dica_liberar: "Mark to give Write to team {t} on Apply review",
     dev_dica_tirar: "Mark to remove team {t} on Apply review (back to the base permission)", dev_dica_desmarcar: "Click again to unmark",
@@ -274,7 +277,7 @@ const TEXTOS = {
     resumo_transferir: "Transferir para {org} ({n}) — sai da sua conta; os clones locais recebem o remote novo",
     devolver: "Devolver", devolver_dica: "Trazer de {org} de volta para a sua conta ({u})", acao_devolver: "devolver",
     resumo_devolver: "Devolver para {u} ({n}) — sai de {org}; os clones locais recebem o remote novo",
-    todos_donos: "Todos os donos", nada_marcado: "Nada marcado. Marque antes os repositórios na coluna Status.",
+    todos_donos: "Todos os donos", mostrando: "<b>{n}</b> de {total}", nada_marcado: "Nada marcado. Marque antes os repositórios na coluna Status.",
     dev_liberar: "Liberar p/ dev", dev_on: "dev: Write ✔", dev_marcado: "Liberar p/ dev (pendente)", dev_tirar: "Tirar do dev (pendente)",
     dev_dica_liberar: "Marcar para dar Write ao time {t} no Aplicar revisão",
     dev_dica_tirar: "Marcar para tirar o time {t} no Aplicar revisão (volta à permissão base)", dev_dica_desmarcar: "Clique de novo para desmarcar",
@@ -428,11 +431,13 @@ function contar() {
   $("cParado").textContent = repos.filter(r => r.parado).length;
 }
 
-function filtrados() {
+// Repositórios da aba atual que passam nos filtros; "ignorar" deixa um filtro de fora
+// (usado para contar as opções de cada lista suspensa considerando só os OUTROS filtros)
+function passam(ignorar = "") {
   const busca = $("fBusca").value.toLowerCase();
-  const ling = $("fLinguagem").value;
-  const dono = $("fDono").value;
-  const st = $("fStatus").value;
+  const ling = ignorar === "fLinguagem" ? "" : $("fLinguagem").value;
+  const dono = ignorar === "fDono" ? "" : $("fDono").value;
+  const st = ignorar === "fStatus" ? "" : $("fStatus").value;
   return repos.filter(r =>
     (visao === "arquivados" ? r.arquivado : !r.arquivado) &&
     (r.id + " " + r.descricao).toLowerCase().includes(busca) &&
@@ -441,7 +446,29 @@ function filtrados() {
     (!st || (st === "pendente" ? !r.status : r.status === st)) &&
     (!$("fParado").checked || r.parado) &&
     (!$("fSemLocal").checked || !r.local)
-  ).sort((a, b) => {
+  );
+}
+
+// Escreve "(n)" em cada opção das listas suspensas
+function contarOpcoes() {
+  const chave = {
+    fDono: r => r.dono,
+    fLinguagem: r => r.linguagem || "—",
+    fStatus: r => r.status || "pendente",
+  };
+  Object.entries(chave).forEach(([id, valorDe]) => {
+    const base = passam(id), qtd = {};
+    base.forEach(r => { const v = valorDe(r); qtd[v] = (qtd[v] || 0) + 1; });
+    [...$(id).options].forEach(op => {
+      if (!op.dataset.rotulo) op.dataset.rotulo = op.dataset.t ? "" : op.textContent;   // nomes fixos (donos, linguagens)
+      const rotulo = op.dataset.t ? t(op.dataset.t, { n: ANOS }) : op.dataset.rotulo;
+      op.textContent = `${rotulo} (${op.value ? (qtd[op.value] || 0) : base.length})`;
+    });
+  });
+}
+
+function filtrados() {
+  return passam().sort((a, b) => {
     const x = String(a[ordem.col] ?? ""), y = String(b[ordem.col] ?? "");
     return (ordem.asc ? 1 : -1) * x.localeCompare(y, idioma);
   });
@@ -476,7 +503,11 @@ function botaoDev(r) {
 }
 
 function desenhar() {
-  $("corpo").innerHTML = filtrados().map(r => `
+  const lista = filtrados();
+  const total = repos.filter(r => visao === "arquivados" ? r.arquivado : !r.arquivado).length;
+  $("contagem").innerHTML = t("mostrando", { n: lista.length, total });
+  contarOpcoes();
+  $("corpo").innerHTML = lista.map(r => `
     <tr data-id="${esc(r.id)}">
       <td>
         ${r.privado ? "🔒 " : ""}${r.dono !== DADOS.usuario ? `<span class="dono">${esc(r.dono)}/</span>` : ""}<a href="${esc(r.url)}" target="_blank">${esc(r.nome)}</a>
@@ -688,9 +719,9 @@ $("btnExportar").addEventListener("click", async () => {
 
 // Preenche o filtro de linguagens, aplica o idioma e desenha a tabela
 [...new Set(repos.map(r => r.dono))].sort().forEach(d =>
-  $("fDono").insertAdjacentHTML("beforeend", `<option>${esc(d)}</option>`));
+  $("fDono").insertAdjacentHTML("beforeend", `<option value="${esc(d)}">${esc(d)}</option>`));
 [...new Set(repos.map(r => r.linguagem || "—"))].sort().forEach(l =>
-  $("fLinguagem").insertAdjacentHTML("beforeend", `<option>${esc(l)}</option>`));
+  $("fLinguagem").insertAdjacentHTML("beforeend", `<option value="${esc(l)}">${esc(l)}</option>`));
 aplicarIdioma();
 desenhar();
 </script>
