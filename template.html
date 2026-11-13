@@ -41,6 +41,10 @@
   .card { background: var(--card); border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; }
   .card .rot { color: var(--texto2); font-size: 12px; }
   .card .num { font-size: 22px; font-weight: 600; }
+  .card { cursor: pointer; transition: border-color .15s; }
+  .card:hover { border-color: var(--texto2); }
+  .card.on { border-color: var(--azul); background: var(--azul-bg); }
+  .card.on .rot, .card.on .num { color: var(--azul); }
   .filtros { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .filtros input[type=text] { flex: 1; min-width: 200px; }
   .filtros label { display: flex; align-items: center; gap: 6px; color: var(--texto2); }
@@ -121,13 +125,13 @@
 <div class="banner" id="bannerExcluir" data-t-html="banner_excluir"></div>
 
 <div class="cards">
-  <div class="card"><div class="rot" data-t="c_ativos"></div><div class="num" id="cAtivos">0</div></div>
-  <div class="card"><div class="rot" data-t="c_arquivados"></div><div class="num" id="cArquivados">0</div></div>
-  <div class="card"><div class="rot" data-t="c_arquivar"></div><div class="num" id="cArquivar">0</div></div>
-  <div class="card so-org"><div class="rot" id="cTransferirRot"></div><div class="num" id="cTransferir">0</div></div>
-  <div class="card"><div class="rot" data-t="c_excluir"></div><div class="num" id="cExcluir">0</div></div>
-  <div class="card"><div class="rot" data-t="c_sem_marcacao"></div><div class="num" id="cPendente">0</div></div>
-  <div class="card"><div class="rot" data-t="c_parados"></div><div class="num" id="cParado">0</div></div>
+  <div class="card" data-card="ativos"><div class="rot" data-t="c_ativos"></div><div class="num" id="cAtivos">0</div></div>
+  <div class="card" data-card="arquivados"><div class="rot" data-t="c_arquivados"></div><div class="num" id="cArquivados">0</div></div>
+  <div class="card" data-card="arquivar"><div class="rot" data-t="c_arquivar"></div><div class="num" id="cArquivar">0</div></div>
+  <div class="card so-org" data-card="mover"><div class="rot" id="cTransferirRot"></div><div class="num" id="cTransferir">0</div></div>
+  <div class="card" data-card="excluir"><div class="rot" data-t="c_excluir"></div><div class="num" id="cExcluir">0</div></div>
+  <div class="card" data-card="pendente"><div class="rot" data-t="c_sem_marcacao"></div><div class="num" id="cPendente">0</div></div>
+  <div class="card" data-card="parados"><div class="rot" data-t="c_parados"></div><div class="num" id="cParado">0</div></div>
 </div>
 
 <div class="abas">
@@ -145,6 +149,7 @@
     <option value="arquivar" data-t="arquivar"></option>
     <option value="transferir" class="so-org" data-t="transferir"></option>
     <option value="devolver" class="so-org" data-t="devolver"></option>
+    <option value="mover" class="so-org" data-t="transferir_ou_devolver"></option>
     <option value="excluir" class="so-excluir" data-t="excluir"></option>
   </select>
   <label><input type="checkbox" id="fParado"> <span data-t="so_parados"></span></label>
@@ -238,7 +243,7 @@ const TEXTOS = {
     resumo_transferir: "Transfer to {org} ({n}) — leaves your account; local clones get the new remote",
     devolver: "Bring back", devolver_dica: "Bring back from {org} to your account ({u})", acao_devolver: "bring back",
     resumo_devolver: "Bring back to {u} ({n}) — leaves {org}; local clones get the new remote",
-    todos_donos: "All owners", mostrando: "<b>{n}</b> of {total}", nada_marcado: "Nothing marked. Mark repositories in the Status column first.",
+    todos_donos: "All owners", transferir_ou_devolver: "Transfer or bring back", card_dica: "Click to list them", mostrando: "<b>{n}</b> of {total}", nada_marcado: "Nothing marked. Mark repositories in the Status column first.",
     dev_liberar: "Allow dev", dev_on: "dev: Write ✔", dev_marcado: "Allow dev (pending)", dev_tirar: "Remove dev (pending)",
     dev_dica_liberar: "Mark to give Write to team {t} on Apply review",
     dev_dica_tirar: "Mark to remove team {t} on Apply review (back to the base permission)", dev_dica_desmarcar: "Click again to unmark",
@@ -277,7 +282,7 @@ const TEXTOS = {
     resumo_transferir: "Transferir para {org} ({n}) — sai da sua conta; os clones locais recebem o remote novo",
     devolver: "Devolver", devolver_dica: "Trazer de {org} de volta para a sua conta ({u})", acao_devolver: "devolver",
     resumo_devolver: "Devolver para {u} ({n}) — sai de {org}; os clones locais recebem o remote novo",
-    todos_donos: "Todos os donos", mostrando: "<b>{n}</b> de {total}", nada_marcado: "Nada marcado. Marque antes os repositórios na coluna Status.",
+    todos_donos: "Todos os donos", transferir_ou_devolver: "Transferir ou devolver", card_dica: "Clique para listar", mostrando: "<b>{n}</b> de {total}", nada_marcado: "Nada marcado. Marque antes os repositórios na coluna Status.",
     dev_liberar: "Liberar p/ dev", dev_on: "dev: Write ✔", dev_marcado: "Liberar p/ dev (pendente)", dev_tirar: "Tirar do dev (pendente)",
     dev_dica_liberar: "Marcar para dar Write ao time {t} no Aplicar revisão",
     dev_dica_tirar: "Marcar para tirar o time {t} no Aplicar revisão (volta à permissão base)", dev_dica_desmarcar: "Clique de novo para desmarcar",
@@ -429,7 +434,14 @@ function contar() {
   $("cExcluir").textContent = repos.filter(r => r.status === "excluir").length;
   $("cPendente").textContent = ativos.filter(r => !r.status).length;
   $("cParado").textContent = repos.filter(r => r.parado).length;
+  document.querySelectorAll(".card[data-card]").forEach(c => {
+    c.classList.toggle("on", c.dataset.card === cardAtivo);
+    c.title = t("card_dica");
+  });
 }
+
+// Aba atual: "ativos", "arquivados" ou "todos" (usado pelos cards que contam nas duas abas)
+const noVisao = r => visao === "todos" || (visao === "arquivados" ? r.arquivado : !r.arquivado);
 
 // Repositórios da aba atual que passam nos filtros; "ignorar" deixa um filtro de fora
 // (usado para contar as opções de cada lista suspensa considerando só os OUTROS filtros)
@@ -439,11 +451,11 @@ function passam(ignorar = "") {
   const dono = ignorar === "fDono" ? "" : $("fDono").value;
   const st = ignorar === "fStatus" ? "" : $("fStatus").value;
   return repos.filter(r =>
-    (visao === "arquivados" ? r.arquivado : !r.arquivado) &&
+    noVisao(r) &&
     (r.id + " " + r.descricao).toLowerCase().includes(busca) &&
     (!ling || (r.linguagem || "—") === ling) &&
     (!dono || r.dono === dono) &&
-    (!st || (st === "pendente" ? !r.status : r.status === st)) &&
+    (!st || (st === "pendente" ? !r.status : st === "mover" ? ["transferir", "devolver"].includes(r.status) : r.status === st)) &&
     (!$("fParado").checked || r.parado) &&
     (!$("fSemLocal").checked || !r.local)
   );
@@ -462,7 +474,8 @@ function contarOpcoes() {
     [...$(id).options].forEach(op => {
       if (!op.dataset.rotulo) op.dataset.rotulo = op.dataset.t ? "" : op.textContent;   // nomes fixos (donos, linguagens)
       const rotulo = op.dataset.t ? t(op.dataset.t, { n: ANOS }) : op.dataset.rotulo;
-      op.textContent = `${rotulo} (${op.value ? (qtd[op.value] || 0) : base.length})`;
+      const n = !op.value ? base.length : op.value === "mover" ? (qtd.transferir || 0) + (qtd.devolver || 0) : (qtd[op.value] || 0);
+      op.textContent = `${rotulo} (${n})`;
     });
   });
 }
@@ -504,7 +517,7 @@ function botaoDev(r) {
 
 function desenhar() {
   const lista = filtrados();
-  const total = repos.filter(r => visao === "arquivados" ? r.arquivado : !r.arquivado).length;
+  const total = repos.filter(noVisao).length;
   $("contagem").innerHTML = t("mostrando", { n: lista.length, total });
   contarOpcoes();
   $("corpo").innerHTML = lista.map(r => `
@@ -573,6 +586,7 @@ async function desarquivar(botao, r) {
 document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => {
   visao = b.dataset.visao;
   document.querySelectorAll(".abas button").forEach(x => x.classList.toggle("on", x === b));
+  cardAtivo = "";
   desenhar();
 }));
 
@@ -588,7 +602,35 @@ document.querySelectorAll("th[data-col]").forEach(th => th.addEventListener("cli
   desenhar();
 }));
 
-["fBusca", "fDono", "fLinguagem", "fStatus", "fParado", "fSemLocal"].forEach(id => $(id).addEventListener("input", desenhar));
+["fBusca", "fDono", "fLinguagem", "fStatus", "fParado", "fSemLocal"].forEach(id =>
+  $(id).addEventListener("input", () => { cardAtivo = ""; desenhar(); }));   // filtro mexido na mão: card perde o destaque
+
+// ---------- Cards clicáveis: limpam os filtros e mostram só os repositórios daquela contagem ----------
+let cardAtivo = "";
+const FILTRO_CARD = {   // aba ("todos" = ativos + arquivados, como a contagem do card) e filtros
+  ativos:     { aba: "ativos" },
+  arquivados: { aba: "arquivados" },
+  arquivar:   { aba: "ativos", status: "arquivar" },
+  mover:      { aba: "todos", status: "mover" },
+  excluir:    { aba: "todos", status: "excluir" },
+  pendente:   { aba: "ativos", status: "pendente" },
+  parados:    { aba: "todos", parado: true },
+};
+function trocarAba(nova) {
+  visao = nova;
+  document.querySelectorAll(".abas button").forEach(x => x.classList.toggle("on", x.dataset.visao === nova));
+}
+document.querySelectorAll(".card[data-card]").forEach(card => card.addEventListener("click", () => {
+  const nome = card.dataset.card, f = FILTRO_CARD[nome];
+  ["fBusca", "fDono", "fLinguagem", "fStatus"].forEach(id => $(id).value = "");
+  $("fParado").checked = !!f.parado;
+  $("fSemLocal").checked = false;
+  $("fStatus").value = f.status || "";
+  trocarAba(f.aba);   // "todos": nenhuma aba fica destacada
+  cardAtivo = nome;
+  desenhar();
+  document.querySelector("table").scrollIntoView({ behavior: "smooth", block: "start" });
+}));
 
 // Fechar janelas
 document.querySelectorAll("[data-fechar]").forEach(b =>
